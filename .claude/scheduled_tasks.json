@@ -1,0 +1,14 @@
+{
+  "tasks": [
+    {
+      "id": "a6822fc7",
+      "cron": "13,43 * * * *",
+      "prompt": "Lightweight checkpoint: Read tasks/mission.md, compare with current git status. If any files have changed or progress has been made since the last mission.md update, update mission.md with current state (completed items, next steps, blocked items) and commit the checkpoint. Run: git log --oneline -3 first to see recent activity. Keep it brief - this is an automated checkpoint, not a full review.",
+      "createdAt": 1777664370088,
+      "recurring": true,
+      "createdBySessionId": "6ab44468-911d-4005-83f9-92eed6960533",
+      "createdByPid": 92462,
+      "createdByProcStart": "Fri May  1 19:32:48 2026"
+    }
+  ]
+}

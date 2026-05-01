@@ -69,9 +69,22 @@
 
 ## 5. 防休眠
 
-- 长时间运行的 Bash 命令通过 `caffeinate` 包装
-- 定期 checkpoint 写盘作为隐式 keep-alive
-- 关键操作前确保系统不休眠
+### caffeinate 包装
+- 预计超过 30 秒的 Bash 命令必须用 `caffeinate -dims` 包装：
+  ```bash
+  caffeinate -dims <your-long-command>
+  ```
+- `-dims` = 防止显示器、系统空闲、硬盘、系统全部休眠
+- 编译、安装依赖、网络下载等操作一律包装
+
+### 定期 Checkpoint（隐式 Keep-Alive）
+- Cron 任务每 30 分钟自动触发一次轻量 checkpoint
+- 验证 `tasks/mission.md` 与当前进度一致
+- 保持 session 活跃，防止空闲超时
+
+### 跨会话存活
+- 即使系统休眠或合盖，checkpoint 系统保证状态不丢
+- 下次会话启动时，从 `tasks/mission.md` 无缝恢复
 
 ## 6. Sandbox 准则
 
