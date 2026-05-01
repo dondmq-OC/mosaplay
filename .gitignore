@@ -2,6 +2,7 @@
 .claude/settings.local.json
 .claude/session_log/
 .claude/cache/
+.claude/scheduled_tasks.lock
 
 # OS
 .DS_Store
