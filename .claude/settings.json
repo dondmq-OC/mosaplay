@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "command": "cd '/Users/friday/工程/Code workspace' && python3 .claude/scripts/checkpoint.py"
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "command": "cd '/Users/friday/工程/Code workspace' && python3 .claude/scripts/log_event.py file_change \"$CLAUDE_TOOL_NAME\" \"$CLAUDE_TOOL_INPUT\""
+      },
+      {
+        "matcher": "Bash",
+        "command": "cd '/Users/friday/工程/Code workspace' && python3 .claude/scripts/log_event.py bash_exec \"$CLAUDE_TOOL_INPUT\""
+      }
+    ]
+  }
+}

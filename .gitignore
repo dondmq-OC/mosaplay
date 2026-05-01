@@ -1,0 +1,13 @@
+# Claude Code
+.claude/settings.local.json
+.claude/session_log/
+.claude/cache/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Secrets
+.env
+*.secret
+credentials.json
