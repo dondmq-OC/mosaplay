@@ -240,6 +240,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
+                // Mouse hover → auto-focus cell under cursor
+                Event::MouseMotion { x, y, .. } => {
+                    for (i, cell) in app.cells.iter().enumerate() {
+                        if x >= cell.x && x < cell.x + cell.w
+                            && y >= cell.y && y < cell.y + cell.h
+                        {
+                            app.focused = i;
+                            break;
+                        }
+                    }
+                }
+
                 Event::KeyDown {
                     keycode: Some(key),
                     keymod,
