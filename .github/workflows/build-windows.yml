@@ -21,30 +21,36 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force windows-deps | Out-Null
           Set-Location windows-deps
-          # mpv Windows dev package (libmpv)
-          Invoke-WebRequest -Uri "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20250216.7z/download" -OutFile mpv.7z
+          # Download libmpv from SourceForge using curl (handles redirects)
+          curl.exe -L -o mpv.7z "https://downloads.sourceforge.net/project/mpv-player-windows/libmpv/mpv-dev-x86_64-20250216.7z"
           7z x mpv.7z -y
-          # Find the extracted directory
+          # Find extracted dir and copy DLL + generate .lib
           $dir = Get-ChildItem -Directory -Filter "mpv-dev*" | Select-Object -First 1
-          Set-Location $dir.FullName
-          # Generate MSVC import library from .def
-          if (Test-Path libmpv-2.def) {
-            lib /def:libmpv-2.def /machine:x64 /out:mpv.lib
+          if ($dir) {
+            Set-Location $dir.FullName
+            if (Test-Path libmpv-2.def) {
+              lib /def:libmpv-2.def /machine:x64 /out:mpv.lib
+            }
+            if (Test-Path mpv-2.dll) { Copy-Item mpv-2.dll .. }
+            if (Test-Path mpv.lib)   { Copy-Item mpv.lib .. }
+            Set-Location ..\..
+          } else {
+            Write-Error "mpv extraction failed"
+            Get-ChildItem
+            exit 1
           }
-          # Copy to deps root
-          Copy-Item mpv-2.dll ..
-          if (Test-Path mpv.lib) { Copy-Item mpv.lib .. }
-          Set-Location ..\..
 
       - name: Download SDL2
         shell: pwsh
         run: |
           Set-Location windows-deps
-          Invoke-WebRequest -Uri "https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-devel-2.32.10-VC.zip" -OutFile sdl2.zip
+          curl.exe -L -o sdl2.zip "https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-devel-2.32.10-VC.zip"
           7z x sdl2.zip -y
           $dir = Get-ChildItem -Directory -Filter "SDL2-*" | Select-Object -First 1
-          Copy-Item "$($dir.FullName)\lib\x64\SDL2.lib" .
-          Copy-Item "$($dir.FullName)\lib\x64\SDL2.dll" .
+          if ($dir) {
+            Copy-Item "$($dir.FullName)\lib\x64\SDL2.lib" .
+            Copy-Item "$($dir.FullName)\lib\x64\SDL2.dll" .
+          }
           Set-Location ..
 
       - name: Build
