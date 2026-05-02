@@ -1,10 +1,15 @@
 # Mission Status
 
-> 最后更新: 2026-05-02 重启前 checkpoint
+> 最后更新: 2026-05-02 checkpoint (4d4345d)
 
 ## 项目：GridPlayer — 多宫格视频播放器
-- **GitHub**: https://github.com/dondmq-OC/gridplayer (8 commits)
+- **GitHub**: https://github.com/dondmq-OC/gridplayer (11 commits)
 - **本地 .app**: `target/GridPlayer.app` (1.9MB binary, 7.6MB bundle)
+
+## 最新修复 (本轮)
+- [x] SIGSEGV crash: mpv render params 缺少终止哨兵 {0,NULL} → 段错误 (d2f7aaf)
+- [x] 渲染器重写: MVP矩阵→glViewport+glScissor, 每个cell独立视口 (4d4345d)
+- [x] 测试: 1/4/9视频均exit 0, 无崩溃
 
 ## 已完成
 - [x] 技术调研：libmpv 是最优播放器内核
