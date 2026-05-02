@@ -12,3 +12,9 @@ Thumbs.db
 .env
 *.secret
 credentials.json
+
+
+# Added by cargo
+
+/target
+test_videos/

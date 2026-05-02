@@ -1,25 +1,30 @@
 # Mission Status
 
-> 最后更新: 2026-05-02 环境准备完成
+> 最后更新: 2026-05-02 GridPlayer v0.1.0 MVP 完成
 
 ## 已完成
-- [x] Git 仓库初始化 + GitHub 认证 (dondmq-OC)
-- [x] CLAUDE.md 上下文管理 + Checkpoint/交接模式
-- [x] Hooks 配置 (Stop→checkpoint, PostToolUse→event log)
-- [x] Session 持久化日志系统 (events.jsonl)
-- [x] 防休眠机制 (caffeinate + 30min Cron checkpoint)
-- [x] Karpathy 四项原则加载
-- [x] 工程环境验证: Python 3.14.3, Node v25.8.0, pytest 9.0.3, PyInstaller 6.20.0
-- [x] npm registry 修复 (npmmirror→npmjs.org)
-- [x] CMake 4.3.2, fzf 0.72.0 安装
+- [x] 技术调研：mpv vs libVLC vs FFmpeg — libmpv 胜出
+- [x] 架构设计：Rust + SDL2 + OpenGL + libmpv
+- [x] 多实例 mpv 渲染引擎（FBO + mpv_render_context）
+- [x] GPU 硬件加速（Metal on Mac, hwdec=auto-safe）
+- [x] Grid 布局计算（3×3, 4×3, 4×4, 2×2, auto）
+- [x] 12 个键盘快捷键（播放/暂停/Seek/速度/焦点/全屏/布局切换）
+- [x] 异步独立控制每个视频单元
+- [x] 极简界面（焦点边框 + 窗口标题状态栏）
+- [x] macOS .app 打包（GridPlayer.app, 7.6MB）
+- [x] 实测：Apple M4 GPU, OpenGL 4.1 Metal, 4视频零崩溃
 
 ## 下一步
-- [ ] 等待用户指定第一个开发任务
+- [ ] Windows 交叉编译（需 mpv.dll + SDL2.dll）
+- [ ] 拖拽添加视频文件
+- [ ] 9/12/16 宫格性能测试
+- [ ] DMG 安装包制作
+- [ ] 独立离线 .app（bundle 全部 64 个传递依赖）
 
 ## 被阻塞
 - 无
 
 ## 未解决的问题
-- Rust 工具链待手动 rustup-init（sandbox 限制 .rustup 目录）
-- Docker 未安装
-- Go 未安装
+- libmpv 有 64 个传递依赖，独立离线打包需 dylibbundler
+- Windows 版本需在 Windows 环境编译或配置交叉编译
+- Consumer GPU 的 NVDEC 并发限制（2-3 路）需在文档中说明
