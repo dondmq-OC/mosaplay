@@ -12,7 +12,7 @@ use std::ffi::{c_char, c_void, CStr};
 use std::time::Instant;
 
 use cell::VideoCell;
-use grid::{calculate_layout, LayoutPadding};
+use grid::{calculate_layout, LayoutConfig};
 use render::RenderState;
 
 // ── OpenGL proc-address callback for libmpv ─────────────────
@@ -35,7 +35,7 @@ extern "C" fn get_proc_address(_ctx: *mut c_void, name: *const c_char) -> *mut c
 struct App {
     cells: Vec<VideoCell>,
     focused: usize,
-    padding: LayoutPadding,
+    padding: LayoutConfig,
     running: bool,
     last_title_update: Instant,
     mouse_x: i32,
@@ -160,7 +160,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let render_state = RenderState::new().map_err(|e| format!("Shader: {e}"))?;
 
     // ── Calculate initial layout ───────────────────────────
-    let padding = LayoutPadding {
+    let padding = LayoutConfig {
         cell_gap: 3,      // thin gap between cells — clean look
         outer_pad: 12,    // window edge padding — drop zone for adding videos
     };
