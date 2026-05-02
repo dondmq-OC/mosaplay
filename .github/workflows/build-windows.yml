@@ -16,60 +16,45 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Download mpv
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force windows-deps | Out-Null
-          Set-Location windows-deps
-          # Download libmpv from shinchiro/mpv-winbuild GitHub releases
-          curl.exe -L -o mpv.7z "https://github.com/shinchiro/mpv-winbuild/releases/download/2025-02-16/mpv-dev-x86_64-20250216.7z"
-          7z x mpv.7z -y
-          $dir = Get-ChildItem -Directory -Filter "mpv-dev*" | Select-Object -First 1
-          if ($dir) {
-            Set-Location $dir.FullName
-            if (Test-Path libmpv-2.def) {
-              lib /def:libmpv-2.def /machine:x64 /out:mpv.lib
-            }
-            if (Test-Path mpv-2.dll) { Copy-Item mpv-2.dll .. }
-            if (Test-Path mpv.lib)   { Copy-Item mpv.lib .. }
-            Set-Location ..\..
-          } else {
-            Write-Error "mpv extraction failed"
-            Get-ChildItem
-            exit 1
-          }
+      - name: Cache vcpkg
+        uses: actions/cache@v4
+        with:
+          path: C:/vcpkg/installed
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/workflows/build-windows.yml') }}
 
-      - name: Download SDL2
-        shell: pwsh
+      - name: Install SDL2 + mpv via vcpkg
         run: |
-          Set-Location windows-deps
-          curl.exe -L -o sdl2.zip "https://github.com/libsdl-org/SDL/releases/download/release-2.32.10/SDL2-devel-2.32.10-VC.zip"
-          7z x sdl2.zip -y
-          $dir = Get-ChildItem -Directory -Filter "SDL2-*" | Select-Object -First 1
-          if ($dir) {
-            Copy-Item "$($dir.FullName)\lib\x64\SDL2.lib" .
-            Copy-Item "$($dir.FullName)\lib\x64\SDL2.dll" .
-          }
-          Set-Location ..
+          vcpkg install sdl2:x64-windows mpv:x64-windows
+          # Let Rust find vcpkg libs
+          echo "VCPKG_ROOT=C:/vcpkg" >> $env:GITHUB_ENV
 
       - name: Build
         env:
-          MPV_LIB_DIR: ${{ github.workspace }}/windows-deps
-          SDL2_LIB_DIR: ${{ github.workspace }}/windows-deps
-        run: |
-          $env:RUSTFLAGS = "-L native=$env:MPV_LIB_DIR -L native=$env:SDL2_LIB_DIR"
-          cargo build --release --target x86_64-pc-windows-msvc
+          RUSTFLAGS: "-L native=C:/vcpkg/installed/x64-windows/lib"
+        run: cargo build --release --target x86_64-pc-windows-msvc
 
-      - name: Package portable
+      - name: Collect DLLs
+        shell: pwsh
         run: |
-          mkdir GridPlayer-win64
-          copy target\x86_64-pc-windows-msvc\release\gridplayer.exe GridPlayer-win64\
-          copy windows-deps\mpv-2.dll GridPlayer-win64\
-          copy windows-deps\SDL2.dll GridPlayer-win64\
-          echo "GridPlayer Windows Portable" > GridPlayer-win64\README.txt
-          echo "Run gridplayer.exe video1.mp4 video2.mp4 ..." >> GridPlayer-win64\README.txt
-          echo "No installation needed — just unzip and run." >> GridPlayer-win64\README.txt
-          7z a GridPlayer-win64.zip GridPlayer-win64
+          New-Item -ItemType Directory -Force GridPlayer-win64 | Out-Null
+          Copy-Item target\x86_64-pc-windows-msvc\release\gridplayer.exe GridPlayer-win64\
+          # Copy required DLLs from vcpkg
+          Copy-Item C:\vcpkg\installed\x64-windows\bin\mpv-2.dll GridPlayer-win64\  -ErrorAction SilentlyContinue
+          Copy-Item C:\vcpkg\installed\x64-windows\bin\SDL2.dll GridPlayer-win64\   -ErrorAction SilentlyContinue
+          # Try alternative paths
+          $mpvDll = Get-ChildItem -Path C:\vcpkg\installed -Recurse -Filter "mpv*.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          $sdlDll = Get-ChildItem -Path C:\vcpkg\installed -Recurse -Filter "SDL2.dll" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($mpvDll) { Copy-Item $mpvDll.FullName GridPlayer-win64\ }
+          if ($sdlDll) { Copy-Item $sdlDll.FullName GridPlayer-win64\ }
+          # Write README
+          "GridPlayer Windows Portable" | Out-File GridPlayer-win64\README.txt
+          "Run: gridplayer.exe video1.mp4 video2.mp4 ..." | Out-File GridPlayer-win64\README.txt -Append
+          "No installation needed — just unzip and run." | Out-File GridPlayer-win64\README.txt -Append
+          # List contents
+          Get-ChildItem GridPlayer-win64
+
+      - name: Package
+        run: 7z a GridPlayer-win64.zip GridPlayer-win64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
