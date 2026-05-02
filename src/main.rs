@@ -517,13 +517,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                ref e => {
-                    let name = format!("{e:?}");
-                    let short = name.split('{').next().unwrap_or(&name);
-                    if !short.starts_with("MouseMotion") {
-                        eprintln!("[EVENT] {short}");
-                    }
-                }
+                _ => {}
             }
         }
 

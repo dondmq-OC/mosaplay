@@ -126,7 +126,9 @@ impl VideoCell {
             let (fbo, texture) = create_fbo(cell_w, cell_h);
 
             // ── Load the file ────────────────────────────
-            let cmd = CString::new(format!("loadfile \"{file_path}\"")).unwrap();
+            // Use loadfile with a command array instead of string to avoid path special chars issues
+            let escaped = file_path.replace('\\', "/");
+            let cmd = CString::new(format!("loadfile \"{escaped}\"")).unwrap();
             mpv_command_string(handle, cmd.as_ptr());
 
             Ok(Self {
@@ -307,7 +309,8 @@ impl VideoCell {
     /// Load an external subtitle file
     pub fn load_external_sub(&self, path: &str) {
         unsafe {
-            let c = CString::new(format!("sub-add \"{path}\"")).unwrap();
+            let escaped = path.replace('\\', "/");
+            let c = CString::new(format!("sub-add \"{escaped}\"")).unwrap();
             mpv_command_string(self.handle, c.as_ptr());
         }
     }

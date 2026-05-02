@@ -129,16 +129,50 @@ impl RenderState {
                     gl::Scissor(cell.x, gl_y, cell.w, cell.h);
                 }
 
-                // Focus border: outer glow + inner line
+                // Focus border: draw 4 thin filled bars around the cell edge
+                // Uses quads instead of glLineWidth (not supported >1 on macOS)
                 if i == focused_idx {
-                    // Outer glow (wider, semi-transparent)
-                    gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.35);
-                    gl::LineWidth(6.0);
-                    gl::DrawArrays(gl::LINE_LOOP, 0, 4);
-                    // Inner sharp line
-                    gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.95);
-                    gl::LineWidth(2.0);
-                    gl::DrawArrays(gl::LINE_LOOP, 0, 4);
+                    let bw = (cell.w.min(cell.h) as f32 * 0.012) as i32;  // glow width
+                    let iw = (bw / 3).max(2);  // inner line width
+                    if bw > 3 {
+                        // Outer glow — 4 bars
+                        // Top bar
+                        gl::Viewport(cell.x - bw, gl_y + cell.h, cell.w + bw * 2, bw);
+                        gl::Scissor(cell.x - bw, gl_y + cell.h, cell.w + bw * 2, bw);
+                        gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.30);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        // Bottom bar
+                        gl::Viewport(cell.x - bw, gl_y - bw, cell.w + bw * 2, bw);
+                        gl::Scissor(cell.x - bw, gl_y - bw, cell.w + bw * 2, bw);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        // Left bar
+                        gl::Viewport(cell.x - bw, gl_y, bw, cell.h);
+                        gl::Scissor(cell.x - bw, gl_y, bw, cell.h);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        // Right bar
+                        gl::Viewport(cell.x + cell.w, gl_y, bw, cell.h);
+                        gl::Scissor(cell.x + cell.w, gl_y, bw, cell.h);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+
+                        // Inner sharp line — same 4 bars, thinner
+                        gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.90);
+                        gl::Viewport(cell.x - iw, gl_y + cell.h, cell.w + iw * 2, iw);
+                        gl::Scissor(cell.x - iw, gl_y + cell.h, cell.w + iw * 2, iw);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::Viewport(cell.x - iw, gl_y - iw, cell.w + iw * 2, iw);
+                        gl::Scissor(cell.x - iw, gl_y - iw, cell.w + iw * 2, iw);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::Viewport(cell.x - iw, gl_y, iw, cell.h);
+                        gl::Scissor(cell.x - iw, gl_y, iw, cell.h);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::Viewport(cell.x + cell.w, gl_y, iw, cell.h);
+                        gl::Scissor(cell.x + cell.w, gl_y, iw, cell.h);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+
+                        // Restore cell viewport
+                        gl::Viewport(cell.x, gl_y, cell.w, cell.h);
+                        gl::Scissor(cell.x, gl_y, cell.w, cell.h);
+                    }
                 }
             }
 
