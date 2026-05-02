@@ -275,11 +275,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let my = app.mouse_y;
                     let file_display = std::path::Path::new(&filename)
                         .file_name().and_then(|n| n.to_str()).unwrap_or(&filename);
+                    let ext = std::path::Path::new(&filename)
+                        .extension().and_then(|e| e.to_str()).unwrap_or("")
+                        .to_lowercase();
 
-                    // Check if dropped onto a specific cell → replace it
-                    let target = app.cells.iter().enumerate().find(|(_, c)| {
-                        mx >= c.x && mx < c.x + c.w && my >= c.y && my < c.y + c.h
-                    });
+                    // Subtitle file → load as external sub for focused cell
+                    if matches!(ext.as_str(), "srt" | "ass" | "ssa" | "sub" | "vtt" | "txt") {
+                        if !app.cells.is_empty() {
+                            app.cells[app.focused].load_external_sub(&filename);
+                            eprintln!("[SUB] Loaded external subtitle: {filename}");
+                            window.set_title(&format!("📜 Sub for [{}] — {file_display}", app.focused + 1)).ok();
+                        }
+                    } else {
+                        // Check if dropped onto a specific cell → replace it
+                        let target = app.cells.iter().enumerate().find(|(_, c)| {
+                            mx >= c.x && mx < c.x + c.w && my >= c.y && my < c.y + c.h
+                        });
 
                     if let Some((i, _)) = target {
                         // Drop on a cell → REPLACE that video
@@ -318,6 +329,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
                     }
+                    } // closes else block (subtitle vs video)
                 }
 
                 Event::KeyDown {
@@ -367,6 +379,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             if !app.cells.is_empty() {
                                 let delta = if ctrl { 30.0 } else { 5.0 };
                                 app.cells[app.focused].seek(delta);
+                            }
+                        }
+
+                        // Subtitle toggle
+                        Keycode::S => {
+                            if !app.cells.is_empty() {
+                                app.cells[app.focused].toggle_subtitles();
                             }
                         }
 

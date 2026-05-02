@@ -45,6 +45,12 @@ impl VideoCell {
             let vo = CString::new("libmpv").unwrap();
             mpv_set_option_string(handle, b"vo\0".as_ptr() as *const _, vo.as_ptr());
 
+            // Subtitles: auto-load external subs, show by default
+            let sub_auto = CString::new("all").unwrap();
+            mpv_set_option_string(handle, b"sub-auto\0".as_ptr() as *const _, sub_auto.as_ptr());
+            let sub_vis = CString::new("yes").unwrap();
+            mpv_set_option_string(handle, b"sub-visibility\0".as_ptr() as *const _, sub_vis.as_ptr());
+
             // Enable hardware decoding
             let hwdec = CString::new("auto-safe").unwrap();
             mpv_set_option_string(handle, b"hwdec\0".as_ptr() as *const _, hwdec.as_ptr());
@@ -286,6 +292,23 @@ impl VideoCell {
                 &mut time as *mut _ as *mut _,
             );
             if ret >= 0 { time } else { 0.0 }
+        }
+    }
+
+    /// Toggle subtitle visibility
+    pub fn toggle_subtitles(&self) {
+        unsafe {
+            // Toggle sub-visibility property
+            let c = CString::new("cycle sub-visibility").unwrap();
+            mpv_command_string(self.handle, c.as_ptr());
+        }
+    }
+
+    /// Load an external subtitle file
+    pub fn load_external_sub(&self, path: &str) {
+        unsafe {
+            let c = CString::new(format!("sub-add \"{path}\"")).unwrap();
+            mpv_command_string(self.handle, c.as_ptr());
         }
     }
 
