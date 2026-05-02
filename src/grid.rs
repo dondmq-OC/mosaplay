@@ -50,7 +50,7 @@ pub fn calculate_layout(
         let landscapes: Vec<(usize, f64)> = aspect_ratios.iter().enumerate()
             .filter(|(_, &a)| a > 1.15).map(|(i, &a)| (i, a)).collect();
         let squares: Vec<(usize, f64)> = aspect_ratios.iter().enumerate()
-            .filter(|(_, &a)| a >= 0.85 && a <= 1.15).map(|(i, &a)| (i, a)).collect();
+            .filter(|(_, &a)| (0.85..=1.15).contains(&a)).map(|(i, &a)| (i, a)).collect();
 
         // Try portrait-right split
         try_portrait_split(&portraits, &landscapes, &squares, usable_w, usable_h, screen_area, cfg, true, &mut best_score, &mut best_rects);

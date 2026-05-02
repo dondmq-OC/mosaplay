@@ -73,7 +73,7 @@ impl RenderState {
             gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (indices.len() * std::mem::size_of::<u32>()) as isize, indices.as_ptr() as *const _, gl::STATIC_DRAW);
 
             let stride = (4 * std::mem::size_of::<f32>()) as i32;
-            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, stride, 0 as *const _);
+            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, stride, std::ptr::null());
             gl::EnableVertexAttribArray(0);
             gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, stride, (2 * std::mem::size_of::<f32>()) as *const _);
             gl::EnableVertexAttribArray(1);
@@ -112,7 +112,7 @@ impl RenderState {
                 gl::BindTexture(gl::TEXTURE_2D, cell.texture);
                 let tex_loc = gl::GetUniformLocation(self.program, b"uTexture\0".as_ptr() as *const _);
                 gl::Uniform1i(tex_loc, 0);
-                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
 
                 // Cell corner marker (colored square, top-left)
                 gl::UseProgram(self.solid_program);
@@ -123,7 +123,7 @@ impl RenderState {
                     gl::Uniform4f(color_loc, r, g, b, 0.80);
                     gl::Scissor(cell.x, gl_y + cell.h - sz, sz, sz);
                     gl::Viewport(cell.x, gl_y + cell.h - sz, sz, sz);
-                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                     // Restore
                     gl::Viewport(cell.x, gl_y, cell.w, cell.h);
                     gl::Scissor(cell.x, gl_y, cell.w, cell.h);
@@ -140,34 +140,34 @@ impl RenderState {
                         gl::Viewport(cell.x - bw, gl_y + cell.h, cell.w + bw * 2, bw);
                         gl::Scissor(cell.x - bw, gl_y + cell.h, cell.w + bw * 2, bw);
                         gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.30);
-                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                         // Bottom bar
                         gl::Viewport(cell.x - bw, gl_y - bw, cell.w + bw * 2, bw);
                         gl::Scissor(cell.x - bw, gl_y - bw, cell.w + bw * 2, bw);
-                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                         // Left bar
                         gl::Viewport(cell.x - bw, gl_y, bw, cell.h);
                         gl::Scissor(cell.x - bw, gl_y, bw, cell.h);
-                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                         // Right bar
                         gl::Viewport(cell.x + cell.w, gl_y, bw, cell.h);
                         gl::Scissor(cell.x + cell.w, gl_y, bw, cell.h);
-                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
 
                         // Inner sharp line — same 4 bars, thinner
                         gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.90);
                         gl::Viewport(cell.x - iw, gl_y + cell.h, cell.w + iw * 2, iw);
                         gl::Scissor(cell.x - iw, gl_y + cell.h, cell.w + iw * 2, iw);
-                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                         gl::Viewport(cell.x - iw, gl_y - iw, cell.w + iw * 2, iw);
                         gl::Scissor(cell.x - iw, gl_y - iw, cell.w + iw * 2, iw);
-                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                         gl::Viewport(cell.x - iw, gl_y, iw, cell.h);
                         gl::Scissor(cell.x - iw, gl_y, iw, cell.h);
-                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                         gl::Viewport(cell.x + cell.w, gl_y, iw, cell.h);
                         gl::Scissor(cell.x + cell.w, gl_y, iw, cell.h);
-                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                        gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
 
                         // Restore cell viewport
                         gl::Viewport(cell.x, gl_y, cell.w, cell.h);

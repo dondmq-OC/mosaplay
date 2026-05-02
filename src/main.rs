@@ -228,8 +228,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Event::Window {
                     win_event: sdl2::event::WindowEvent::Resized(w, h),
                     ..
-                } => {
-                    if w > 0 && h > 0 {
+                }
+                    if w > 0 && h > 0 => {
                         screen_w = w;
                         screen_h = h;
                         unsafe {
@@ -237,7 +237,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
                         app.update_layout(w as u32, h as u32);
                     }
-                }
 
                 // Mouse hover → auto-focus cell under cursor
                 Event::MouseMotion { x, y, .. } => {
@@ -349,7 +348,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Keycode::Q if cmd => app.running = false,
 
                         // Focus navigation
-                        Keycode::Tab => {
+                        Keycode::Tab if !app.cells.is_empty() => {
                             if shift {
                                 if app.focused == 0 {
                                     app.focused = app.cells.len() - 1;
@@ -362,46 +361,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         // Play/Pause focused cell
-                        Keycode::Space => {
-                            if !app.cells.is_empty() {
+                        Keycode::Space
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].toggle_pause();
                             }
-                        }
 
                         // Seek
-                        Keycode::Left => {
-                            if !app.cells.is_empty() {
+                        Keycode::Left
+                            if !app.cells.is_empty() => {
                                 let delta = if ctrl { -30.0 } else { -5.0 };
                                 app.cells[app.focused].seek(delta);
                             }
-                        }
-                        Keycode::Right => {
-                            if !app.cells.is_empty() {
+                        Keycode::Right
+                            if !app.cells.is_empty() => {
                                 let delta = if ctrl { 30.0 } else { 5.0 };
                                 app.cells[app.focused].seek(delta);
                             }
-                        }
 
                         // Subtitle toggle
-                        Keycode::S => {
-                            if !app.cells.is_empty() {
+                        Keycode::S
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].toggle_subtitles();
                             }
-                        }
 
                         // Volume control
-                        Keycode::LeftBracket => {
-                            if !app.cells.is_empty() {
+                        Keycode::LeftBracket
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].adjust_volume(-5.0);
                             }
-                        }
-                        Keycode::RightBracket => {
-                            if !app.cells.is_empty() {
+                        Keycode::RightBracket
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].adjust_volume(5.0);
                             }
-                        }
-                        Keycode::M => {
-                            if !app.cells.is_empty() {
+                        Keycode::M
+                            if !app.cells.is_empty() => {
                                 let cell = &app.cells[app.focused];
                                 if cell.volume() > 0.0 {
                                     cell.set_volume(0.0);
@@ -409,23 +402,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     cell.set_volume(50.0);
                                 }
                             }
-                        }
 
                         // Speed control
-                        Keycode::Up => {
-                            if !app.cells.is_empty() {
+                        Keycode::Up
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].adjust_speed(0.25);
                             }
-                        }
-                        Keycode::Down => {
-                            if !app.cells.is_empty() {
+                        Keycode::Down
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].adjust_speed(-0.25);
                             }
-                        }
 
                         // Direct cell selection (1-9, 0 for 10th)
                         Keycode::Num1 | Keycode::Kp1 => {
-                            app.focused = 0.min(app.cells.len().saturating_sub(1));
+                            app.focused = 0;
                         }
                         Keycode::Num2 | Keycode::Kp2 => {
                             app.focused = 1.min(app.cells.len().saturating_sub(1));
@@ -456,27 +446,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         }
 
                         // Speed presets
-                        Keycode::Minus => {
-                            if !app.cells.is_empty() {
+                        Keycode::Minus
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].adjust_speed(-0.1);
                             }
-                        }
-                        Keycode::Equals | Keycode::Plus | Keycode::KpPlus => {
-                            if !app.cells.is_empty() {
+                        Keycode::Equals | Keycode::Plus | Keycode::KpPlus
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].adjust_speed(0.1);
                             }
-                        }
 
                         // Reset speed to 1x
-                        Keycode::R => {
-                            if !app.cells.is_empty() {
+                        Keycode::R
+                            if !app.cells.is_empty() => {
                                 app.cells[app.focused].set_speed(1.0);
                             }
-                        }
 
                         // Close focused cell
-                        Keycode::Delete | Keycode::Backspace if !shift => {
-                            if !app.cells.is_empty() {
+                        Keycode::Delete | Keycode::Backspace if !shift
+                            && !app.cells.is_empty() => {
                                 app.cells.remove(app.focused);
                                 if app.cells.is_empty() {
                                     app.running = false;
@@ -485,7 +472,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     app.update_layout(screen_w as u32, screen_h as u32);
                                 }
                             }
-                        }
 
                         // Pause all / Play all
                         Keycode::P => {
