@@ -1,4 +1,4 @@
-//! GridPlayer — Multi-video grid player powered by libmpv + OpenGL + SDL2.
+//! MosaPlay — Multi-video grid player powered by libmpv + OpenGL + SDL2.
 //!
 //! Play 1–16+ videos simultaneously in a configurable grid layout,
 //! with async per-video control (play/pause/seek/speed) via keyboard.
@@ -57,14 +57,14 @@ impl App {
 
     fn build_title(&self) -> String {
         if self.cells.is_empty() {
-            return "GridPlayer".into();
+            return "MosaPlay".into();
         }
         let cell = &self.cells[self.focused % self.cells.len()];
         let status = if cell.is_playing { "▶" } else { "⏸" };
         let time = cell.get_time();
         let dur = cell.get_duration();
         format!(
-            "GridPlayer [{}/{}] {} {} | {:.0}s/{:.0}s | {:.2}x",
+            "MosaPlay [{}/{}] {} {} | {:.0}s/{:.0}s | {:.2}x",
             self.focused + 1,
             self.cells.len(),
             status,
@@ -118,7 +118,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let initial_h = (display_bounds.h as f64 * 0.85) as u32;
 
     let mut window = video_subsystem
-        .window("GridPlayer", initial_w, initial_h)
+        .window("MosaPlay", initial_w, initial_h)
         .opengl()
         .resizable()
         .build()
@@ -575,8 +575,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn show_usage_info() {
-    eprintln!("GridPlayer v0.1.0 — Multi-video grid player");
-    eprintln!("Usage: gridplayer <video1> [video2] ...");
+    eprintln!("MosaPlay v0.1.0 — Multi-video grid player");
+    eprintln!("Usage: mosaplay <video1> [video2] ...");
     eprintln!("Keys: Space=play/pause  ←→=seek  ↑↓=speed  Tab=focus");
     eprintln!("      1-9=select  F=fullscreen  G=grid  Esc=quit");
 }

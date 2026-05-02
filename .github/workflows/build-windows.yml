@@ -58,11 +58,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force GridPlayer-win64 | Out-Null
-          Copy-Item target\x86_64-pc-windows-msvc\release\gridplayer.exe GridPlayer-win64\
+          Copy-Item target\x86_64-pc-windows-msvc\release\mosaplay.exe GridPlayer-win64\
           Copy-Item windows-deps\libmpv-2.dll GridPlayer-win64\
           Copy-Item C:\vcpkg\installed\x64-windows\bin\SDL2.dll GridPlayer-win64\
           "GridPlayer Windows Portable" | Out-File GridPlayer-win64\README.txt
-          "Run: gridplayer.exe video1.mp4 video2.mp4 ..." | Out-File GridPlayer-win64\README.txt -Append
+          "Run: mosaplay.exe video1.mp4 video2.mp4 ..." | Out-File GridPlayer-win64\README.txt -Append
           "No installation needed — just unzip and run." | Out-File GridPlayer-win64\README.txt -Append
           Get-ChildItem GridPlayer-win64
           7z a GridPlayer-win64.zip GridPlayer-win64

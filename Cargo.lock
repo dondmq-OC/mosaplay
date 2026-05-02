@@ -607,20 +607,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gridplayer"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "env_logger",
- "gl",
- "glow",
- "log",
- "pkg-config",
- "rfd",
- "sdl2",
-]
-
-[[package]]
 name = "hashbrown"
 version = "0.15.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -887,6 +873,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "mosaplay"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "env_logger",
+ "gl",
+ "glow",
+ "log",
+ "pkg-config",
+ "rfd",
+ "sdl2",
 ]
 
 [[package]]
