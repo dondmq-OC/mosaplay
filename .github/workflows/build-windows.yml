@@ -19,6 +19,9 @@ jobs:
       - name: Install SDL2 via vcpkg
         run: vcpkg install sdl2:x64-windows
 
+      - name: Setup MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+
       - name: Download mpv (latest from GitHub releases)
         shell: pwsh
         run: |
