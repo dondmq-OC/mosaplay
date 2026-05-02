@@ -86,15 +86,21 @@ impl RenderState {
     pub fn render_grid(
         &self, cells: &[VideoCell], focused_idx: usize, screen_w: i32, screen_h: i32,
     ) {
+        // Color palette for cell corner markers (10 distinct colors)
+        let palette: [(f32, f32, f32); 10] = [
+            (0.98, 0.40, 0.30), (0.30, 0.80, 0.40), (0.30, 0.50, 0.98),
+            (0.95, 0.80, 0.20), (0.70, 0.30, 0.90), (0.20, 0.85, 0.75),
+            (0.95, 0.55, 0.10), (0.50, 0.50, 0.90), (0.90, 0.25, 0.55),
+            (0.40, 0.70, 0.30),
+        ];
+
         unsafe {
-            gl::ClearColor(0.08, 0.08, 0.10, 1.0);
+            gl::ClearColor(0.06, 0.06, 0.08, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
             for (i, cell) in cells.iter().enumerate() {
-                // Flip Y: OpenGL has origin at bottom-left, our coords have origin at top-left
                 let gl_y = screen_h - cell.y - cell.h;
 
-                // Set viewport to this cell's region
                 gl::Viewport(cell.x, gl_y, cell.w, cell.h);
                 gl::Scissor(cell.x, gl_y, cell.w, cell.h);
                 gl::Enable(gl::SCISSOR_TEST);
@@ -108,17 +114,34 @@ impl RenderState {
                 gl::Uniform1i(tex_loc, 0);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
 
-                // Draw focus border
+                // Cell corner marker (colored square, top-left)
+                gl::UseProgram(self.solid_program);
+                let (r, g, b) = palette[i % 10];
+                let color_loc = gl::GetUniformLocation(self.solid_program, b"uColor\0".as_ptr() as *const _);
+                let sz = (cell.w.min(cell.h) as f32 * 0.08) as i32;
+                if sz > 6 {
+                    gl::Uniform4f(color_loc, r, g, b, 0.80);
+                    gl::Scissor(cell.x, gl_y + cell.h - sz, sz, sz);
+                    gl::Viewport(cell.x, gl_y + cell.h - sz, sz, sz);
+                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+                    // Restore
+                    gl::Viewport(cell.x, gl_y, cell.w, cell.h);
+                    gl::Scissor(cell.x, gl_y, cell.w, cell.h);
+                }
+
+                // Focus border: outer glow + inner line
                 if i == focused_idx {
-                    gl::UseProgram(self.solid_program);
-                    let color_loc = gl::GetUniformLocation(self.solid_program, b"uColor\0".as_ptr() as *const _);
-                    gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.9);
-                    gl::LineWidth(3.0);
+                    // Outer glow (wider, semi-transparent)
+                    gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.35);
+                    gl::LineWidth(6.0);
+                    gl::DrawArrays(gl::LINE_LOOP, 0, 4);
+                    // Inner sharp line
+                    gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.95);
+                    gl::LineWidth(2.0);
                     gl::DrawArrays(gl::LINE_LOOP, 0, 4);
                 }
             }
 
-            // Restore full viewport
             gl::Disable(gl::SCISSOR_TEST);
             gl::Viewport(0, 0, screen_w, screen_h);
             gl::BindVertexArray(0);
