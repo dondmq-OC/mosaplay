@@ -1,16 +1,16 @@
 //! OpenGL renderer: compositing video textures into a grid layout.
+//! Uses glViewport per cell — no MVP matrix needed.
 
 use crate::cell::VideoCell;
 
-/// Vertex shader: full-screen quad with texture coordinates
+/// Simple vertex shader: unit quad, no transform
 const VERTEX_SHADER: &str = r#"
 #version 330 core
 layout(location = 0) in vec2 aPos;
 layout(location = 1) in vec2 aTexCoord;
 out vec2 vTexCoord;
-uniform mat4 uMVP;
 void main() {
-    gl_Position = uMVP * vec4(aPos, 0.0, 1.0);
+    gl_Position = vec4(aPos, 0.0, 1.0);
     vTexCoord = aTexCoord;
 }
 "#;
@@ -26,7 +26,7 @@ void main() {
 }
 "#;
 
-/// Solid-color fragment shader for focus border / background
+/// Solid-color fragment shader for focus border
 const SOLID_FRAGMENT: &str = r#"
 #version 330 core
 out vec4 FragColor;
@@ -36,10 +36,9 @@ void main() {
 }
 "#;
 
-/// GPU resources for rendering
 pub struct RenderState {
-    pub program: u32,       // main video texture shader
-    pub solid_program: u32, // solid color shader
+    pub program: u32,
+    pub solid_program: u32,
     vao: u32,
     vbo: u32,
     ebo: u32,
@@ -51,163 +50,79 @@ impl RenderState {
             let program = create_shader_program(VERTEX_SHADER, FRAGMENT_SHADER)?;
             let solid_program = create_shader_program(VERTEX_SHADER, SOLID_FRAGMENT)?;
 
-            // Quad vertices: position(2) + texcoord(2)
+            // Unit quad: fills [-1,1] → maps to whatever viewport is set
             #[rustfmt::skip]
             let vertices: [f32; 16] = [
-                // pos      texcoord
-                -1.0, -1.0,  0.0, 0.0,  // bottom-left
-                 1.0, -1.0,  1.0, 0.0,  // bottom-right
-                 1.0,  1.0,  1.0, 1.0,  // top-right
-                -1.0,  1.0,  0.0, 1.0,  // top-left
+                -1.0, -1.0,  0.0, 0.0,
+                 1.0, -1.0,  1.0, 0.0,
+                 1.0,  1.0,  1.0, 1.0,
+                -1.0,  1.0,  0.0, 1.0,
             ];
             let indices: [u32; 6] = [0, 1, 2, 0, 2, 3];
 
-            let mut vao = 0;
-            let mut vbo = 0;
-            let mut ebo = 0;
-
+            let mut vao = 0; let mut vbo = 0; let mut ebo = 0;
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
             gl::GenBuffers(1, &mut ebo);
-
             gl::BindVertexArray(vao);
 
-            // VBO
             gl::BindBuffer(gl::ARRAY_BUFFER, vbo);
-            let size = (vertices.len() * std::mem::size_of::<f32>()) as isize;
-            gl::BufferData(gl::ARRAY_BUFFER, size, vertices.as_ptr() as *const _, gl::STATIC_DRAW);
+            gl::BufferData(gl::ARRAY_BUFFER, (vertices.len() * std::mem::size_of::<f32>()) as isize, vertices.as_ptr() as *const _, gl::STATIC_DRAW);
 
-            // EBO
             gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
-            let size = (indices.len() * std::mem::size_of::<u32>()) as isize;
-            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, size, indices.as_ptr() as *const _, gl::STATIC_DRAW);
+            gl::BufferData(gl::ELEMENT_ARRAY_BUFFER, (indices.len() * std::mem::size_of::<u32>()) as isize, indices.as_ptr() as *const _, gl::STATIC_DRAW);
 
-            // Position attribute (location 0)
-            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, (4 * std::mem::size_of::<f32>()) as i32, 0 as *const _);
+            let stride = (4 * std::mem::size_of::<f32>()) as i32;
+            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, stride, 0 as *const _);
             gl::EnableVertexAttribArray(0);
-
-            // TexCoord attribute (location 1)
-            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, (4 * std::mem::size_of::<f32>()) as i32, (2 * std::mem::size_of::<f32>()) as *const _);
+            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, stride, (2 * std::mem::size_of::<f32>()) as *const _);
             gl::EnableVertexAttribArray(1);
-
             gl::BindVertexArray(0);
 
             Ok(Self { program, solid_program, vao, vbo, ebo })
         }
     }
 
-    /// Render all video cells in the grid layout
     pub fn render_grid(
-        &self,
-        cells: &[VideoCell],
-        focused_idx: usize,
-        screen_w: i32,
-        screen_h: i32,
-        margin: i32,
+        &self, cells: &[VideoCell], focused_idx: usize, screen_w: i32, screen_h: i32, _margin: i32,
     ) {
         unsafe {
-            // Clear background to dark gray
             gl::ClearColor(0.08, 0.08, 0.10, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);
 
-            gl::UseProgram(self.program);
-            gl::BindVertexArray(self.vao);
+            for (i, cell) in cells.iter().enumerate() {
+                // Flip Y: OpenGL has origin at bottom-left, our coords have origin at top-left
+                let gl_y = screen_h - cell.y - cell.h;
 
-            for (_i, cell) in cells.iter().enumerate() {
-                self.render_cell(cell, screen_w, screen_h, margin);
+                // Set viewport to this cell's region
+                gl::Viewport(cell.x, gl_y, cell.w, cell.h);
+                gl::Scissor(cell.x, gl_y, cell.w, cell.h);
+                gl::Enable(gl::SCISSOR_TEST);
+
+                // Draw video texture
+                gl::UseProgram(self.program);
+                gl::BindVertexArray(self.vao);
+                gl::ActiveTexture(gl::TEXTURE0);
+                gl::BindTexture(gl::TEXTURE_2D, cell.texture);
+                let tex_loc = gl::GetUniformLocation(self.program, b"uTexture\0".as_ptr() as *const _);
+                gl::Uniform1i(tex_loc, 0);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
+
+                // Draw focus border
+                if i == focused_idx {
+                    gl::UseProgram(self.solid_program);
+                    let color_loc = gl::GetUniformLocation(self.solid_program, b"uColor\0".as_ptr() as *const _);
+                    gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.9);
+                    gl::LineWidth(3.0);
+                    gl::DrawArrays(gl::LINE_LOOP, 0, 4);
+                }
             }
 
-            // Draw focus border on focused cell
-            if !cells.is_empty() {
-                let cell = &cells[focused_idx % cells.len()];
-                self.render_focus_border(cell, screen_w, screen_h, margin);
-            }
-
+            // Restore full viewport
+            gl::Disable(gl::SCISSOR_TEST);
+            gl::Viewport(0, 0, screen_w, screen_h);
             gl::BindVertexArray(0);
             gl::UseProgram(0);
-        }
-    }
-
-    fn render_cell(&self, cell: &VideoCell, screen_w: i32, screen_h: i32, _margin: i32) {
-        unsafe {
-            // Calculate normalized device coordinates
-            let x = cell.x;
-            let y = cell.y;
-            let w = cell.w;
-            let h = cell.h;
-
-            let left   = (x as f32 / screen_w as f32) * 2.0 - 1.0;
-            let right  = ((x + w) as f32 / screen_w as f32) * 2.0 - 1.0;
-            let bottom = 1.0 - ((y + h) as f32 / screen_h as f32) * 2.0;
-            let top    = 1.0 - (y as f32 / screen_h as f32) * 2.0;
-
-            // Build MVP matrix for this cell (orthographic scale + translate)
-            let sx = (right - left) / 2.0;
-            let sy = (top - bottom) / 2.0;
-            let tx = (right + left) / 2.0;
-            let ty = (top + bottom) / 2.0;
-
-            let mvp: [f32; 16] = [
-                sx, 0.0, 0.0, 0.0,
-                0.0, sy, 0.0, 0.0,
-                0.0, 0.0, 1.0, 0.0,
-                tx, ty, 0.0, 1.0,
-            ];
-
-            let loc = gl::GetUniformLocation(self.program, b"uMVP\0".as_ptr() as *const _);
-            gl::UniformMatrix4fv(loc, 1, gl::FALSE, mvp.as_ptr());
-
-            // bind cell texture
-            gl::ActiveTexture(gl::TEXTURE0);
-            gl::BindTexture(gl::TEXTURE_2D, cell.texture);
-            let tex_loc = gl::GetUniformLocation(self.program, b"uTexture\0".as_ptr() as *const _);
-            gl::Uniform1i(tex_loc, 0);
-
-            // Draw filled quad
-            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, 0 as *const _);
-        }
-    }
-
-    fn render_focus_border(&self, cell: &VideoCell, screen_w: i32, screen_h: i32, _margin: i32) {
-        unsafe {
-            let border_thickness = 3.0;
-
-            // Slightly expand beyond the cell
-            let x = cell.x as f32 - border_thickness;
-            let y = cell.y as f32 - border_thickness;
-            let w = cell.w as f32 + border_thickness * 2.0;
-            let h = cell.h as f32 + border_thickness * 2.0;
-
-            let left   = (x / screen_w as f32) * 2.0 - 1.0;
-            let right  = ((x + w) / screen_w as f32) * 2.0 - 1.0;
-            let bottom = 1.0 - ((y + h) / screen_h as f32) * 2.0;
-            let top    = 1.0 - (y / screen_h as f32) * 2.0;
-
-            gl::UseProgram(self.solid_program);
-
-            let sx = (right - left) / 2.0;
-            let sy = (top - bottom) / 2.0;
-            let tx = (right + left) / 2.0;
-            let ty = (top + bottom) / 2.0;
-
-            let mvp: [f32; 16] = [
-                sx, 0.0, 0.0, 0.0,
-                0.0, sy, 0.0, 0.0,
-                0.0, 0.0, 1.0, 0.0,
-                tx, ty, 0.0, 1.0,
-            ];
-
-            let loc = gl::GetUniformLocation(self.solid_program, b"uMVP\0".as_ptr() as *const _);
-            gl::UniformMatrix4fv(loc, 1, gl::FALSE, mvp.as_ptr());
-
-            // Bright orange focus indicator
-            let color_loc = gl::GetUniformLocation(self.solid_program, b"uColor\0".as_ptr() as *const _);
-            gl::Uniform4f(color_loc, 1.0, 0.55, 0.0, 0.9);
-
-            // Draw wireframe quad (border only)
-            gl::LineWidth(border_thickness);
-            gl::DrawArrays(gl::LINE_LOOP, 0, 4);
-            gl::UseProgram(self.program); // restore
         }
     }
 }
@@ -224,14 +139,12 @@ impl Drop for RenderState {
     }
 }
 
-/// Compile a shader from source
 unsafe fn compile_shader(source: &str, shader_type: u32) -> Result<u32, String> {
     let shader = gl::CreateShader(shader_type);
     let len = source.len() as i32;
     let src = source.as_ptr() as *const i8;
     gl::ShaderSource(shader, 1, &src, &len);
     gl::CompileShader(shader);
-
     let mut success = 0i32;
     gl::GetShaderiv(shader, gl::COMPILE_STATUS, &mut success);
     if success == 0 {
@@ -245,16 +158,13 @@ unsafe fn compile_shader(source: &str, shader_type: u32) -> Result<u32, String> 
     Ok(shader)
 }
 
-/// Create a linked shader program from vertex + fragment sources
 unsafe fn create_shader_program(vs_src: &str, fs_src: &str) -> Result<u32, String> {
     let vs = compile_shader(vs_src, gl::VERTEX_SHADER)?;
     let fs = compile_shader(fs_src, gl::FRAGMENT_SHADER)?;
-
     let program = gl::CreateProgram();
     gl::AttachShader(program, vs);
     gl::AttachShader(program, fs);
     gl::LinkProgram(program);
-
     let mut success = 0i32;
     gl::GetProgramiv(program, gl::LINK_STATUS, &mut success);
     if success == 0 {
@@ -267,7 +177,6 @@ unsafe fn create_shader_program(vs_src: &str, fs_src: &str) -> Result<u32, Strin
         gl::DeleteShader(fs);
         return Err(msg.into_owned());
     }
-
     gl::DeleteShader(vs);
     gl::DeleteShader(fs);
     Ok(program)
