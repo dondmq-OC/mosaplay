@@ -57,18 +57,18 @@ jobs:
       - name: Package portable
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force GridPlayer-win64 | Out-Null
-          Copy-Item target\x86_64-pc-windows-msvc\release\mosaplay.exe GridPlayer-win64\
-          Copy-Item windows-deps\libmpv-2.dll GridPlayer-win64\
-          Copy-Item C:\vcpkg\installed\x64-windows\bin\SDL2.dll GridPlayer-win64\
-          "GridPlayer Windows Portable" | Out-File GridPlayer-win64\README.txt
-          "Run: mosaplay.exe video1.mp4 video2.mp4 ..." | Out-File GridPlayer-win64\README.txt -Append
-          "No installation needed — just unzip and run." | Out-File GridPlayer-win64\README.txt -Append
-          Get-ChildItem GridPlayer-win64
-          7z a GridPlayer-win64.zip GridPlayer-win64
+          New-Item -ItemType Directory -Force MosaPlay-win64 | Out-Null
+          Copy-Item target\x86_64-pc-windows-msvc\release\mosaplay.exe MosaPlay-win64\
+          Copy-Item windows-deps\libmpv-2.dll MosaPlay-win64\
+          Copy-Item C:\vcpkg\installed\x64-windows\bin\SDL2.dll MosaPlay-win64\
+          "MosaPlay Windows Portable" | Out-File MosaPlay-win64\README.txt
+          "Run: mosaplay.exe video1.mp4 video2.mp4 ..." | Out-File MosaPlay-win64\README.txt -Append
+          "No installation needed — just unzip and run." | Out-File MosaPlay-win64\README.txt -Append
+          Get-ChildItem MosaPlay-win64
+          7z a MosaPlay-win64.zip MosaPlay-win64
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: GridPlayer-win64
-          path: GridPlayer-win64.zip
+          name: MosaPlay-win64
+          path: MosaPlay-win64.zip
