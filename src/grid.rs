@@ -38,7 +38,12 @@ pub fn calculate_layout(
     }
 
     // ── Try multiple grid candidates ──────────────────────
-    let mut best_score = f64::MAX;
+    // Score = total video fill area / total usable screen area.
+    // Maximize this. Empty cells contribute 0 fill, so they naturally
+    // penalize grids with unused slots — but only when a more-packed
+    // grid would give larger total video area.
+    let screen_area = usable_w as f64 * usable_h as f64;
+    let mut best_score: f64 = -1.0;
     let mut best_rects = vec![];
 
     let max_cols = n.min((usable_w / 120).max(1) as usize);
@@ -47,7 +52,6 @@ pub fn calculate_layout(
     for cols in 1..=max_cols {
         for rows in 1..=max_rows {
             if rows * cols < n { continue; }
-            // Don't try grids with way too many empty cells
             let empty = rows * cols - n;
             if empty > n { continue; }
 
@@ -59,29 +63,22 @@ pub fn calculate_layout(
 
             let cell_ar = cell_w as f64 / cell_h as f64;
 
-            // Score: average "wasted area" per filled cell
-            // wasted = 1 - (video_fill_area / cell_area)
-            let mut waste_sum = 0.0;
+            // Total fill area: sum over all videos of their rendered area
+            let mut total_fill = 0.0;
             for &ar in aspect_ratios.iter() {
                 let ar = ar.max(0.3).min(3.0);
-                let fill_w = if cell_ar > ar { cell_h as f64 * ar } else { cell_w as f64 };
-                let fill_h = if cell_ar > ar { cell_h as f64 } else { cell_w as f64 / ar };
-                let fill_area = fill_w * fill_h;
-                let cell_area = cell_w as f64 * cell_h as f64;
-                let waste = 1.0 - fill_area / cell_area;
-                waste_sum += waste;
+                let (fw, fh) = if cell_ar > ar {
+                    (cell_h as f64 * ar, cell_h as f64)
+                } else {
+                    (cell_w as f64, cell_w as f64 / ar)
+                };
+                total_fill += fw * fh;
             }
-            let avg_waste = waste_sum / n as f64;
+            // Score = fraction of usable screen filled by videos
+            let score = total_fill / screen_area;
 
-            // Prefer grids that use more of the screen
-            let used_frac = n as f64 / (rows * cols) as f64;
-
-            // Score = avg_waste + penalty for empty cells (slight)
-            let score = avg_waste + (1.0 - used_frac) * 0.05;
-
-            if score < best_score {
+            if score > best_score {
                 best_score = score;
-                // Generate rects for this grid
                 let mut rects = Vec::with_capacity(n);
                 for i in 0..n {
                     let col = (i % cols) as i32;

@@ -253,6 +253,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
+                // Middle-click on cell → close it
+                Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Middle, x, y, .. } => {
+                    let target = app.cells.iter().enumerate().find(|(_, c)| {
+                        x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h
+                    });
+                    if let Some((i, _)) = target {
+                        app.cells.remove(i);
+                        if !app.cells.is_empty() {
+                            app.focused = app.focused.min(app.cells.len() - 1);
+                            app.update_layout(screen_w as u32, screen_h as u32);
+                        } else {
+                            app.running = false;
+                        }
+                    }
+                }
+
                 // Drag-and-drop files
                 Event::DropFile { filename, .. } => {
                     let mx = app.mouse_x;
@@ -432,10 +448,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
 
-                        // Reset speed
-                        Keycode::Backspace => {
+                        // Reset speed to 1x
+                        Keycode::R => {
                             if !app.cells.is_empty() {
                                 app.cells[app.focused].set_speed(1.0);
+                            }
+                        }
+
+                        // Close focused cell
+                        Keycode::Delete | Keycode::Backspace if !shift => {
+                            if !app.cells.is_empty() {
+                                app.cells.remove(app.focused);
+                                if app.cells.is_empty() {
+                                    app.running = false;
+                                } else {
+                                    app.focused = app.focused.min(app.cells.len() - 1);
+                                    app.update_layout(screen_w as u32, screen_h as u32);
+                                }
                             }
                         }
 
