@@ -19,36 +19,26 @@ jobs:
       - name: Install SDL2 via vcpkg
         run: vcpkg install sdl2:x64-windows
 
-      - name: Download mpv
+      - name: Download mpv (latest from GitHub releases)
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force windows-deps | Out-Null
           Set-Location windows-deps
-          # SourceForge with browser UA to avoid redirect page
-          curl.exe -L -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" -o mpv.7z "https://sourceforge.net/projects/mpv-player-windows/files/libmpv/mpv-dev-x86_64-20250216.7z/download"
-          # Check if it's a valid archive
-          $size = (Get-Item mpv.7z).Length
-          Write-Host "Downloaded: $size bytes"
-          if ($size -lt 10000) {
-            Write-Host "Download too small, dumping content:"
-            Get-Content mpv.7z -Raw
-            exit 1
-          }
+          # Get latest release from shinchiro/mpv-winbuild-cmake
+          $release = Invoke-RestMethod -Uri "https://api.github.com/repos/shinchiro/mpv-winbuild-cmake/releases/latest" -Headers @{Accept="application/vnd.github+json"}
+          $asset = $release.assets | Where-Object { $_.name -match 'mpv-dev-x86_64-' -and $_.name -notmatch 'v3' } | Select-Object -First 1
+          Write-Host "Downloading: $($asset.name) ($([math]::Round($asset.size/1MB,1))MB)"
+          Invoke-WebRequest -Uri $asset.browser_download_url -OutFile mpv.7z
           7z x mpv.7z -y
-          $dir = Get-ChildItem -Directory -Filter "mpv-dev*" | Select-Object -First 1
-          if ($dir) {
-            Set-Location $dir.FullName
-            if (Test-Path libmpv-2.def) {
-              lib /def:libmpv-2.def /machine:x64 /out:mpv.lib
-            }
-            Copy-Item mpv-2.dll ..
-            if (Test-Path mpv.lib) { Copy-Item mpv.lib .. }
-            Set-Location ..\..
-          } else {
-            Write-Error "mpv extraction failed"
-            Get-ChildItem
-            exit 1
+          $dir = Get-ChildItem -Directory | Select-Object -First 1
+          Set-Location $dir.FullName
+          # Generate MSVC import library from .def
+          if (Test-Path libmpv-2.def) {
+            lib /def:libmpv-2.def /machine:x64 /out:mpv.lib
           }
+          Copy-Item libmpv-2.dll ..
+          if (Test-Path mpv.lib) { Copy-Item mpv.lib .. }
+          Set-Location ..\..
 
       - name: Build
         env:
@@ -60,7 +50,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force GridPlayer-win64 | Out-Null
           Copy-Item target\x86_64-pc-windows-msvc\release\gridplayer.exe GridPlayer-win64\
-          Copy-Item windows-deps\mpv-2.dll GridPlayer-win64\
+          Copy-Item windows-deps\libmpv-2.dll GridPlayer-win64\
           Copy-Item C:\vcpkg\installed\x64-windows\bin\SDL2.dll GridPlayer-win64\
           "GridPlayer Windows Portable" | Out-File GridPlayer-win64\README.txt
           "Run: gridplayer.exe video1.mp4 video2.mp4 ..." | Out-File GridPlayer-win64\README.txt -Append
