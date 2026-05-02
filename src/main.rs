@@ -85,13 +85,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Parse command-line arguments: video files to load
     let args: Vec<String> = std::env::args().skip(1).collect();
+    let args = if args.is_empty() {
+        // No args — try to open file dialog
+        show_usage_info();
+        match open_file_dialog() {
+            Some(files) => files,
+            None => {
+                eprintln!("No files selected. Exiting.");
+                std::process::exit(0);
+            }
+        }
+    } else {
+        args
+    };
 
     if args.is_empty() {
-        eprintln!("Usage: gridplayer <video1> [video2] [video3] ...");
-        eprintln!("  Keys: Space=play/pause  Left/Right=seek  Up/Down=speed  Tab=focus");
-        eprintln!("        1-9=select cell  F=fullscreen  G=cycle grid  +/-=speed");
-        eprintln!("        Esc=quit  Backspace=reset speed  P=pause all");
-        std::process::exit(1);
+        std::process::exit(0);
     }
 
     // ── Init SDL2 ───────────────────────────────────────────
@@ -455,6 +464,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Done.");
 
     Ok(())
+}
+
+fn show_usage_info() {
+    eprintln!("GridPlayer v0.1.0 — Multi-video grid player");
+    eprintln!("Usage: gridplayer <video1> [video2] ...");
+    eprintln!("Keys: Space=play/pause  ←→=seek  ↑↓=speed  Tab=focus");
+    eprintln!("      1-9=select  F=fullscreen  G=grid  Esc=quit");
+}
+
+fn open_file_dialog() -> Option<Vec<String>> {
+    rfd::FileDialog::new()
+        .set_title("Select video files to play")
+        .add_filter("Video Files", &["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv", "m4v"])
+        .add_filter("All Files", &["*"])
+        .pick_files()
+        .map(|paths| paths.into_iter().filter_map(|p| p.to_str().map(|s| s.to_string())).collect())
 }
 
 unsafe fn gl_get_string(name: u32) -> String {
