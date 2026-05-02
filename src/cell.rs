@@ -165,8 +165,9 @@ impl VideoCell {
                         type_: MPV_RENDER_PARAM_FLIP_Y,
                         data: &flip_y as *const _ as *mut _,
                     },
+                    // Sentinel: terminates the params array (REQUIRED by mpv)
                     MpvRenderParam {
-                        type_: MPV_RENDER_PARAM_SKIP_RENDERING,
+                        type_: 0,
                         data: ptr::null_mut(),
                     },
                 ];
