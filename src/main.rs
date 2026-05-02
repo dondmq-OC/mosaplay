@@ -290,6 +290,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             }
                         }
 
+                        // Volume control
+                        Keycode::LeftBracket => {
+                            if !app.cells.is_empty() {
+                                app.cells[app.focused].adjust_volume(-5.0);
+                            }
+                        }
+                        Keycode::RightBracket => {
+                            if !app.cells.is_empty() {
+                                app.cells[app.focused].adjust_volume(5.0);
+                            }
+                        }
+                        Keycode::M => {
+                            if !app.cells.is_empty() {
+                                let cell = &app.cells[app.focused];
+                                if cell.volume() > 0.0 {
+                                    cell.set_volume(0.0);
+                                } else {
+                                    cell.set_volume(50.0);
+                                }
+                            }
+                        }
+
                         // Speed control
                         Keycode::Up => {
                             if !app.cells.is_empty() {
@@ -475,9 +497,9 @@ fn show_usage_info() {
 
 fn open_file_dialog() -> Option<Vec<String>> {
     rfd::FileDialog::new()
-        .set_title("Select video files to play")
-        .add_filter("Video Files", &["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv", "m4v"])
-        .add_filter("All Files", &["*"])
+        .set_title("选择要播放的视频文件")
+        .add_filter("视频文件", &["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv", "m4v", "ts", "m2ts"])
+        .add_filter("所有文件", &["*"])
         .pick_files()
         .map(|paths| paths.into_iter().filter_map(|p| p.to_str().map(|s| s.to_string())).collect())
 }

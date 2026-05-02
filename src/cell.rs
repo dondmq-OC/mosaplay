@@ -41,15 +41,17 @@ impl VideoCell {
                 return Err("mpv_create failed".into());
             }
 
+            // CRITICAL: Use libmpv render API — prevent mpv from creating its own window
+            let vo = CString::new("libmpv").unwrap();
+            mpv_set_option_string(handle, b"vo\0".as_ptr() as *const _, vo.as_ptr());
+
             // Enable hardware decoding
             let hwdec = CString::new("auto-safe").unwrap();
             mpv_set_option_string(handle, b"hwdec\0".as_ptr() as *const _, hwdec.as_ptr());
 
-            // Disable audio output (we don't play audio in grid view)
-            let ao = CString::new("no").unwrap();
-            mpv_set_option_string(handle, b"audio-display\0".as_ptr() as *const _, ao.as_ptr());
-            let ao_null = CString::new("null").unwrap();
-            mpv_set_option_string(handle, b"ao\0".as_ptr() as *const _, ao_null.as_ptr());
+            // Keep audio enabled for per-video volume control, default muted
+            let vol = CString::new("0").unwrap();
+            mpv_set_option_string(handle, b"volume\0".as_ptr() as *const _, vol.as_ptr());
 
             // Minimize latency
             let profile = CString::new("low-latency").unwrap();
@@ -61,6 +63,12 @@ impl VideoCell {
             mpv_set_option_string(
                 handle,
                 b"terminal\0".as_ptr() as *const _,
+                CString::new("no").unwrap().as_ptr(),
+            );
+            // Disable OSC (on-screen controller), we handle all controls
+            mpv_set_option_string(
+                handle,
+                b"osc\0".as_ptr() as *const _,
                 CString::new("no").unwrap().as_ptr(),
             );
 
@@ -206,6 +214,32 @@ impl VideoCell {
     /// Adjust speed by delta
     pub fn adjust_speed(&mut self, delta: f64) {
         self.set_speed(self.speed + delta);
+    }
+
+    /// Get/set volume (0-100)
+    pub fn volume(&self) -> f64 {
+        unsafe {
+            let mut v: f64 = 0.0;
+            let ret = mpv_get_property(
+                self.handle,
+                b"volume\0".as_ptr() as *const _,
+                MPV_FORMAT_DOUBLE,
+                &mut v as *mut _ as *mut _,
+            );
+            if ret >= 0 { v } else { 0.0 }
+        }
+    }
+
+    pub fn set_volume(&self, vol: f64) {
+        let vol = vol.clamp(0.0, 150.0);
+        unsafe {
+            let c = CString::new(format!("set volume {vol}")).unwrap();
+            mpv_command_string(self.handle, c.as_ptr());
+        }
+    }
+
+    pub fn adjust_volume(&self, delta: f64) {
+        self.set_volume(self.volume() + delta);
     }
 
     /// Get current playback time in seconds
