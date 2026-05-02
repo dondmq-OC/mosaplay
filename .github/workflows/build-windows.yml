@@ -29,21 +29,21 @@ jobs:
           $asset = $release.assets | Where-Object { $_.name -match 'mpv-dev-x86_64-' -and $_.name -notmatch 'v3' } | Select-Object -First 1
           Write-Host "Downloading: $($asset.name) ($([math]::Round($asset.size/1MB,1))MB)"
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile mpv.7z
-          7z x mpv.7z -y
-          # Find the DLL and .def (directory structure varies)
-          $dll = Get-ChildItem -Recurse -Filter "*.dll" | Where-Object { $_.Name -match 'mpv.*\.dll' } | Select-Object -First 1
-          $def = Get-ChildItem -Recurse -Filter "*.def" | Where-Object { $_.Name -match 'mpv' } | Select-Object -First 1
+          # Extract into subdir to avoid overwriting our .def template
+          New-Item -ItemType Directory mpv-extract -Force | Out-Null
+          Push-Location mpv-extract
+          7z x ..\mpv.7z -y
+          # Find the DLL
+          $dll = Get-ChildItem -Recurse -Filter "*.dll" | Where-Object { $_.Name -match 'mpv' } | Select-Object -First 1
           Write-Host "Found DLL: $($dll.FullName)"
-          Write-Host "Found DEF: $($def.FullName)"
-          if ($def) {
-            Push-Location $def.DirectoryName
-            lib /def:$($def.Name) /machine:x64 /out:mpv.lib
-            Pop-Location
-          }
-          if ($dll) { Copy-Item $dll.FullName . }
-          # Copy .lib if generated
-          $lib = Get-ChildItem -Recurse -Filter "mpv.lib" | Select-Object -First 1
-          if ($lib) { Copy-Item $lib.FullName . }
+          if ($dll) { Copy-Item $dll.FullName .. }
+          # Look for .def in extracted package
+          $def = Get-ChildItem -Recurse -Filter "*.def" | Where-Object { $_.Name -match 'mpv' } | Select-Object -First 1
+          Pop-Location
+          # Fall back to our template
+          if (-not $def) { $def = Get-Item .\mpv.def }
+          Write-Host "Using DEF: $($def.FullName)"
+          lib /def:$($def.FullName) /machine:x64 /out:mpv.lib
           Set-Location ..
 
       - name: Build
