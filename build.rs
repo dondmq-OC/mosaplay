@@ -1,11 +1,11 @@
 fn main() {
-    // Add Homebrew library paths (Apple Silicon and Intel)
-    println!("cargo:rustc-link-search=native=/opt/homebrew/lib");
-    println!("cargo:rustc-link-search=native=/usr/local/lib");
+    #[cfg(target_os = "macos")]
+    {
+        println!("cargo:rustc-link-search=native=/opt/homebrew/lib");
+        println!("cargo:rustc-link-search=native=/usr/local/lib");
+        println!("cargo:rustc-link-arg=-Wl,-rpath,/opt/homebrew/lib");
+    }
 
-    // Set runtime library search path
-    println!("cargo:rustc-link-arg=-Wl,-rpath,/opt/homebrew/lib");
-
-    // Link libmpv dynamically
+    // Link libmpv — on Windows the .lib is generated from .def by CI
     println!("cargo:rustc-link-lib=mpv");
 }
