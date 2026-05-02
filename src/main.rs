@@ -39,6 +39,8 @@ struct App {
     margin: u32,
     running: bool,
     last_title_update: Instant,
+    mouse_x: i32,
+    mouse_y: i32,
 }
 
 impl App {
@@ -203,6 +205,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         margin: m,
         running: true,
         last_title_update: Instant::now(),
+        mouse_x: 0,
+        mouse_y: 0,
     };
 
     let mut screen_w = initial_w as i32;
@@ -242,12 +246,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 // Mouse hover → auto-focus cell under cursor
                 Event::MouseMotion { x, y, .. } => {
+                    app.mouse_x = x;
+                    app.mouse_y = y;
                     for (i, cell) in app.cells.iter().enumerate() {
                         if x >= cell.x && x < cell.x + cell.w
                             && y >= cell.y && y < cell.y + cell.h
                         {
                             app.focused = i;
                             break;
+                        }
+                    }
+                }
+
+                // Drag-and-drop files
+                Event::DropFile { filename, .. } => {
+                    let mx = app.mouse_x;
+                    let my = app.mouse_y;
+                    // Check if dropped onto an existing cell → replace it
+                    let target = app.cells.iter().enumerate().find(|(_, c)| {
+                        mx >= c.x && mx < c.x + c.w && my >= c.y && my < c.y + c.h
+                    });
+                    if let Some((i, _)) = target {
+                        // Drop on cell → replace that video
+                        println!("Replacing cell {i} with: {filename}");
+                        match VideoCell::new(&filename, get_proc_address, app.cells[i].w, app.cells[i].h) {
+                            Ok(mut new_cell) => {
+                                new_cell.x = app.cells[i].x;
+                                new_cell.y = app.cells[i].y;
+                                app.cells[i] = new_cell;
+                                app.focused = i;
+                            }
+                            Err(e) => eprintln!("Failed to load '{filename}': {e}"),
+                        }
+                    } else {
+                        // Drop on empty space → add as new cell
+                        println!("Adding new cell: {filename}");
+                        let (cw, ch) = (app.grid_layout.cell_w, app.grid_layout.cell_h);
+                        let w = cw as i32 - 2 * app.margin as i32;
+                        let h = ch as i32 - 2 * app.margin as i32;
+                        match VideoCell::new(&filename, get_proc_address, w.max(64), h.max(64)) {
+                            Ok(cell) => {
+                                app.cells.push(cell);
+                                app.update_layout(screen_w as u32, screen_h as u32);
+                            }
+                            Err(e) => eprintln!("Failed to load '{filename}': {e}"),
                         }
                     }
                 }
