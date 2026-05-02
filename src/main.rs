@@ -169,7 +169,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ── Create video cells ──────────────────────────────────
     let mut cells: Vec<VideoCell> = Vec::new();
-    let m = 4u32; // margin in pixels
+    let m = 8u32; // margin in pixels — also serves as drop zone between cells
     let (cw, ch) = (grid_layout.cell_w, grid_layout.cell_h);
 
     for (i, path) in args.iter().enumerate() {
@@ -262,34 +262,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Event::DropFile { filename, .. } => {
                     let mx = app.mouse_x;
                     let my = app.mouse_y;
-                    // Check if dropped onto an existing cell → replace it
+                    let file_display = std::path::Path::new(&filename)
+                        .file_name().and_then(|n| n.to_str()).unwrap_or(&filename);
+
+                    // Check if dropped onto a specific cell → replace it
                     let target = app.cells.iter().enumerate().find(|(_, c)| {
                         mx >= c.x && mx < c.x + c.w && my >= c.y && my < c.y + c.h
                     });
+
                     if let Some((i, _)) = target {
-                        // Drop on cell → replace that video
-                        println!("Replacing cell {i} with: {filename}");
+                        // Drop on a cell → REPLACE that video
+                        eprintln!("[DROP] Replacing cell {i} with: {filename}");
+                        window.set_title(&format!("↻ Replacing [{i}] — {file_display}")).ok();
                         match VideoCell::new(&filename, get_proc_address, app.cells[i].w, app.cells[i].h) {
                             Ok(mut new_cell) => {
                                 new_cell.x = app.cells[i].x;
                                 new_cell.y = app.cells[i].y;
                                 app.cells[i] = new_cell;
                                 app.focused = i;
+                                eprintln!("[DROP] Cell {i} replaced ok");
                             }
-                            Err(e) => eprintln!("Failed to load '{filename}': {e}"),
+                            Err(e) => {
+                                eprintln!("[DROP] Replace failed: {e}");
+                                window.set_title(&format!("✗ Failed: {file_display}")).ok();
+                            }
                         }
                     } else {
-                        // Drop on empty space → add as new cell
-                        println!("Adding new cell: {filename}");
+                        // Drop on empty space (or Shift+drop anywhere) → ADD new cell
+                        eprintln!("[DROP] Adding new cell: {filename}");
+                        window.set_title(&format!("+ Adding — {file_display}")).ok();
                         let (cw, ch) = (app.grid_layout.cell_w, app.grid_layout.cell_h);
                         let w = cw as i32 - 2 * app.margin as i32;
                         let h = ch as i32 - 2 * app.margin as i32;
                         match VideoCell::new(&filename, get_proc_address, w.max(64), h.max(64)) {
-                            Ok(cell) => {
-                                app.cells.push(cell);
+                            Ok(_cell) => {
+                                app.cells.push(_cell);
+                                app.grid_layout = grid::calculate_grid(app.cells.len() as u32, screen_w as u32, screen_h as u32);
                                 app.update_layout(screen_w as u32, screen_h as u32);
+                                app.focused = app.cells.len() - 1;
+                                eprintln!("[DROP] Added ok, now {} cells", app.cells.len());
                             }
-                            Err(e) => eprintln!("Failed to load '{filename}': {e}"),
+                            Err(e) => {
+                                eprintln!("[DROP] Add failed: {e}");
+                                window.set_title(&format!("✗ Failed: {file_display}")).ok();
+                            }
                         }
                     }
                 }
@@ -490,7 +506,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                _ => {}
+                ref e => {
+                    let name = format!("{e:?}");
+                    let short = name.split('{').next().unwrap_or(&name);
+                    if !short.starts_with("MouseMotion") {
+                        eprintln!("[EVENT] {short}");
+                    }
+                }
             }
         }
 
