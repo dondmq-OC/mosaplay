@@ -84,7 +84,7 @@ impl RenderState {
     }
 
     pub fn render_grid(
-        &self, cells: &[VideoCell], focused_idx: usize, screen_w: i32, screen_h: i32, _margin: i32,
+        &self, cells: &[VideoCell], focused_idx: usize, screen_w: i32, screen_h: i32,
     ) {
         unsafe {
             gl::ClearColor(0.08, 0.08, 0.10, 1.0);

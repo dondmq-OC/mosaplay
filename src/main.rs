@@ -12,7 +12,7 @@ use std::ffi::{c_char, c_void, CStr};
 use std::time::Instant;
 
 use cell::VideoCell;
-use grid::{calculate_grid, cell_position};
+use grid::{calculate_layout, LayoutPadding};
 use render::RenderState;
 
 // ── OpenGL proc-address callback for libmpv ─────────────────
@@ -35,8 +35,7 @@ extern "C" fn get_proc_address(_ctx: *mut c_void, name: *const c_char) -> *mut c
 struct App {
     cells: Vec<VideoCell>,
     focused: usize,
-    grid_layout: grid::GridLayout,
-    margin: u32,
+    padding: LayoutPadding,
     running: bool,
     last_title_update: Instant,
     mouse_x: i32,
@@ -45,18 +44,14 @@ struct App {
 
 impl App {
     fn update_layout(&mut self, screen_w: u32, screen_h: u32) {
-        self.grid_layout = calculate_grid(self.cells.len() as u32, screen_w, screen_h);
-        let m = self.margin;
-
-        for (i, cell) in self.cells.iter_mut().enumerate() {
-            let (x, y) = cell_position(i as u32, &self.grid_layout, m);
-            let w = self.grid_layout.cell_w as i32 - 2 * m as i32;
-            let h = self.grid_layout.cell_h as i32 - 2 * m as i32;
-            if w != cell.w || h != cell.h {
-                cell.resize(w.max(64), h.max(64));
+        let ars: Vec<f64> = self.cells.iter().map(|c| c.aspect_ratio()).collect();
+        let rects = calculate_layout(&ars, screen_w as i32, screen_h as i32, &self.padding);
+        for (cell, rect) in self.cells.iter_mut().zip(rects.iter()) {
+            if rect.w != cell.w || rect.h != cell.h {
+                cell.resize(rect.w.max(40), rect.h.max(40));
             }
-            cell.x = x;
-            cell.y = y;
+            cell.x = rect.x;
+            cell.y = rect.y;
         }
     }
 
@@ -164,25 +159,26 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // ── Initialize render state ─────────────────────────────
     let render_state = RenderState::new().map_err(|e| format!("Shader: {e}"))?;
 
-    // ── Calculate initial grid ──────────────────────────────
-    let grid_layout = calculate_grid(args.len() as u32, initial_w, initial_h);
+    // ── Calculate initial layout ───────────────────────────
+    let padding = LayoutPadding {
+        cell_gap: 3,      // thin gap between cells — clean look
+        outer_pad: 12,    // window edge padding — drop zone for adding videos
+    };
+    // Use default 16:9 for initial layout (actual ARs loaded later)
+    let dummy_ars: Vec<f64> = args.iter().map(|_| 16.0 / 9.0).collect();
+    let initial_rects = calculate_layout(&dummy_ars, initial_w as i32, initial_h as i32, &padding);
 
     // ── Create video cells ──────────────────────────────────
     let mut cells: Vec<VideoCell> = Vec::new();
-    let m = 8u32; // margin in pixels — also serves as drop zone between cells
-    let (cw, ch) = (grid_layout.cell_w, grid_layout.cell_h);
 
     for (i, path) in args.iter().enumerate() {
-        let (x, y) = cell_position(i as u32, &grid_layout, m);
-        let w = cw as i32 - 2 * m as i32;
-        let h = ch as i32 - 2 * m as i32;
-
+        let rect = &initial_rects[i];
         println!("Loading [{}/{}]: {path}", i + 1, args.len());
 
-        match VideoCell::new(path, get_proc_address, w.max(64), h.max(64)) {
+        match VideoCell::new(path, get_proc_address, rect.w.max(40), rect.h.max(40)) {
             Ok(mut cell) => {
-                cell.x = x;
-                cell.y = y;
+                cell.x = rect.x;
+                cell.y = rect.y;
                 cells.push(cell);
             }
             Err(e) => {
@@ -201,8 +197,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut app = App {
         cells,
         focused: 0,
-        grid_layout,
-        margin: m,
+        padding,
         running: true,
         last_title_update: Instant::now(),
         mouse_x: 0,
@@ -291,13 +286,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         // Drop on empty space (or Shift+drop anywhere) → ADD new cell
                         eprintln!("[DROP] Adding new cell: {filename}");
                         window.set_title(&format!("+ Adding — {file_display}")).ok();
-                        let (cw, ch) = (app.grid_layout.cell_w, app.grid_layout.cell_h);
-                        let w = cw as i32 - 2 * app.margin as i32;
-                        let h = ch as i32 - 2 * app.margin as i32;
-                        match VideoCell::new(&filename, get_proc_address, w.max(64), h.max(64)) {
+                        // Estimate cell size from existing cells or use default
+                        let est_w = app.cells.first().map(|c| c.w).unwrap_or(320);
+                        let est_h = app.cells.first().map(|c| c.h).unwrap_or(180);
+                        match VideoCell::new(&filename, get_proc_address, est_w.max(40), est_h.max(40)) {
                             Ok(_cell) => {
                                 app.cells.push(_cell);
-                                app.grid_layout = grid::calculate_grid(app.cells.len() as u32, screen_w as u32, screen_h as u32);
                                 app.update_layout(screen_w as u32, screen_h as u32);
                                 app.focused = app.cells.len() - 1;
                                 eprintln!("[DROP] Added ok, now {} cells", app.cells.len());
@@ -466,40 +460,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             fullscreen_toggle = true;
                         }
 
-                        // Cycle grid layouts
+                        // Refresh layout (re-read aspect ratios)
                         Keycode::G => {
-                            let n = app.cells.len() as u32;
-                            let layouts: &[(u32, u32)] =
-                                &[(0, 0), (3, 3), (4, 3), (4, 4), (2, 2)];
-                            let current = (app.grid_layout.cols, app.grid_layout.rows);
-                            let mut next_layout = None;
-                            for (i, l) in layouts.iter().enumerate() {
-                                if *l == current {
-                                    let idx = (i + 1) % layouts.len();
-                                    next_layout = Some(layouts[idx]);
-                                    break;
-                                }
-                            }
-                            if let Some(next) = next_layout {
-                                if next.0 == 0 {
-                                    app.grid_layout = calculate_grid(
-                                        n,
-                                        screen_w as u32,
-                                        screen_h as u32,
-                                    );
-                                } else {
-                                    let (cols, rows) = next;
-                                    let cw = screen_w as u32 / cols;
-                                    let ch = screen_h as u32 / rows;
-                                    app.grid_layout = grid::GridLayout {
-                                        cols,
-                                        rows,
-                                        cell_w: cw,
-                                        cell_h: ch,
-                                    };
-                                }
-                                app.update_layout(screen_w as u32, screen_h as u32);
-                            }
+                            app.update_layout(screen_w as u32, screen_h as u32);
                         }
 
                         _ => {}
@@ -539,7 +502,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             app.focused,
             screen_w,
             screen_h,
-            app.margin as i32,
         );
 
         window.gl_swap_window();

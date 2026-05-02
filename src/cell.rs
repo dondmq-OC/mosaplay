@@ -243,6 +243,38 @@ impl VideoCell {
         self.set_volume(self.volume() + delta);
     }
 
+    /// Get video display dimensions (width, height). Returns (0,0) if unknown.
+    pub fn dimensions(&self) -> (i32, i32) {
+        unsafe {
+            let mut w: i64 = 0;
+            let mut h: i64 = 0;
+            let rw = mpv_get_property(self.handle, b"dwidth\0".as_ptr() as *const _, MPV_FORMAT_INT64, &mut w as *mut _ as *mut _);
+            let rh = mpv_get_property(self.handle, b"dheight\0".as_ptr() as *const _, MPV_FORMAT_INT64, &mut h as *mut _ as *mut _);
+            if rw >= 0 && rh >= 0 && w > 0 && h > 0 {
+                (w as i32, h as i32)
+            } else {
+                // Fallback to encoded dimensions
+                let rw2 = mpv_get_property(self.handle, b"width\0".as_ptr() as *const _, MPV_FORMAT_INT64, &mut w as *mut _ as *mut _);
+                let rh2 = mpv_get_property(self.handle, b"height\0".as_ptr() as *const _, MPV_FORMAT_INT64, &mut h as *mut _ as *mut _);
+                if rw2 >= 0 && rh2 >= 0 && w > 0 && h > 0 {
+                    (w as i32, h as i32)
+                } else {
+                    (0, 0)
+                }
+            }
+        }
+    }
+
+    /// Aspect ratio = width / height. Returns 16.0/9.0 if unknown.
+    pub fn aspect_ratio(&self) -> f64 {
+        let (w, h) = self.dimensions();
+        if w > 0 && h > 0 {
+            w as f64 / h as f64
+        } else {
+            16.0 / 9.0
+        }
+    }
+
     /// Get current playback time in seconds
     pub fn get_time(&self) -> f64 {
         unsafe {
