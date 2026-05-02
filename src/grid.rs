@@ -119,6 +119,9 @@ fn try_uniform_grids(
 
 /// Portrait videos in a dedicated column (left or right),
 /// landscapes + squares in a grid filling the rest.
+///
+/// Key insight: sweep across different portrait column widths to find
+/// the optimal balance between portrait fill and landscape grid fill.
 fn try_portrait_split(
     portraits: &[(usize, f64)], landscapes: &[(usize, f64)], squares: &[(usize, f64)],
     uw: i32, uh: i32, screen_area: f64, cfg: &LayoutConfig,
@@ -127,10 +130,6 @@ fn try_portrait_split(
 ) {
     let gap = cfg.cell_gap;
 
-    // Portrait column: stack all portraits vertically.
-    // Each portrait fills the column width.
-    // Column width = portrait_AR * (portrait_height) — we want portraits to fit their height.
-    // Simplified: all portraits share column width, each gets height proportional to its AR.
     let total_portraits = portraits.len() + squares.len();
     if total_portraits == 0 { return; }
 
@@ -140,94 +139,100 @@ fn try_portrait_split(
     col_videos.sort_by(|a, b| a.1.partial_cmp(&b.1).unwrap_or(std::cmp::Ordering::Equal));
 
     let n_col = col_videos.len();
-    let _tgw = (n_col as i32 - 1).max(0) * gap;
-    // Column height = full usable height. Each video gets: h_i = uh * (1/ar_i) / sum(1/ar_j)
-    let inv_sum: f64 = col_videos.iter().map(|(_, a)| 1.0 / a.max(0.3)).sum();
-    // Column width should be the max of (h_i * ar_i) for any video
-    // Since h_i = uh * (1/ar_i) / inv_sum, then w_i = h_i * ar_i = uh / inv_sum
-    // All videos in the column have the same width: uh / inv_sum
-    let col_w = (uh as f64 / inv_sum) as i32;
-    let col_w = col_w.min(uw / 2).max(40); // Don't take more than half the screen
-
-    let land_w = uw - col_w - gap;
-    if land_w < 120 { return; }
-
-    // Landscapes grid: try various column counts
     let n_land = landscapes.len();
     if n_land == 0 { return; }
 
-    let max_lcols = n_land.min((land_w / 120).max(1) as usize);
-    for lcols in 1..=max_lcols {
-        for lrows in 1..=n_land {
-            if lrows * lcols < n_land { continue; }
-            if lrows * lcols - n_land > n_land { continue; }
+    // "Natural" column width from portrait ARs — upper bound
+    let inv_sum: f64 = col_videos.iter().map(|(_, a)| 1.0 / a.max(0.3)).sum();
+    let natural_w = (uh as f64 / inv_sum) as i32;
 
-            let ltgw = (lcols as i32 - 1).max(0) * gap;
-            let ltgh = (lrows as i32 - 1).max(0) * gap;
-            let lcw = (land_w - ltgw) / lcols as i32;
-            let lch = (uh - ltgh) / lrows as i32;
-            if lcw < 40 || lch < 30 { continue; }
+    // Sweep column widths: from minimum reasonable to natural width
+    // Try ~20 steps across the range
+    let min_w = (uw / 10).max(120); // minimum viewable portrait width
+    let max_w = natural_w.max(min_w).min(uw * 2 / 3);
+    let steps = 20;
+    let step_size = ((max_w - min_w) as f64 / steps as f64).max(1.0) as i32;
 
-            let cell_ar = lcw as f64 / lch as f64;
-            let mut total_fill = 0.0;
+    for step in 0..=steps {
+        let col_w = (min_w + step * step_size).min(max_w);
+        let land_w = uw - col_w - gap;
+        if land_w < 120 { continue; }
 
-            // Portrait column videos
-            let mut y = cfg.outer_pad;
-            for &(_, ar) in &col_videos {
-                let ar = ar.max(0.3).min(3.0);
-                // Height proportional to 1/AR
-                let vid_h = (uh as f64 * (1.0 / ar) / inv_sum) as i32;
-                let vid_h = vid_h.min(uh - (y - cfg.outer_pad)).max(30);
-                // Video fill in {col_w}×{vid_h} cell
-                let fill = cell_fill_area(ar, col_w, vid_h, col_w as f64 / vid_h as f64);
-                total_fill += fill;
-                y += vid_h + gap;
-            }
-            // We overshoot vertically — scale down proportionally
-            let total_h = y - gap - cfg.outer_pad;
-            if total_h > uh {
-                // Scale to fit
-                let scale = uh as f64 / total_h as f64;
-                total_fill *= scale;
-            }
+        // Calculate portrait fill for this column width
+        // Each portrait: ideal height = col_w / ar (to fill width perfectly)
+        let total_ideal_h: f64 = col_videos.iter()
+            .map(|(_, a)| col_w as f64 / a.max(0.3).max(0.3))
+            .sum();
+        let total_gap_h = (n_col as i32 - 1).max(0) * gap;
+        // Scale to fit available height
+        let scale = if total_ideal_h + total_gap_h as f64 > uh as f64 {
+            (uh - total_gap_h) as f64 / total_ideal_h
+        } else {
+            1.0
+        };
+        let scale = scale.max(0.1);
 
-            // Landscape videos
-            for &(_, ar) in landscapes {
-                total_fill += cell_fill_area(ar.max(0.3).min(3.0), lcw, lch, cell_ar);
-            }
+        let scaled_w = (col_w as f64 * scale) as i32;
+        let mut p_fill = 0.0;
+        for &(_, ar) in &col_videos {
+            let ar = ar.max(0.3).min(3.0);
+            let vid_h = ((col_w as f64 / ar) * scale) as i32;
+            let vid_h = vid_h.max(30);
+            let cell_ar = if vid_h > 0 { scaled_w as f64 / vid_h as f64 } else { 1.0 };
+            p_fill += cell_fill_area(ar, scaled_w, vid_h, cell_ar);
+        }
 
-            let score = total_fill / screen_area;
-            if score > *best_score {
-                *best_score = score;
-                // Build rects
-                let col_x = if portrait_right { cfg.outer_pad + land_w + gap } else { cfg.outer_pad };
-                let land_x = if portrait_right { cfg.outer_pad } else { cfg.outer_pad + col_w + gap };
+        // Try landscape grid layouts with the remaining width
+        let max_lcols = n_land.min((land_w / 120).max(1) as usize);
+        for lcols in 1..=max_lcols {
+            for lrows in 1..=n_land {
+                if lrows * lcols < n_land { continue; }
+                if lrows * lcols - n_land > n_land { continue; }
 
-                let mut rects = vec![CellRect{x:0,y:0,w:0,h:0}; portraits.len() + landscapes.len() + squares.len()];
+                let ltgw = (lcols as i32 - 1).max(0) * gap;
+                let ltgh = (lrows as i32 - 1).max(0) * gap;
+                let lcw = (land_w - ltgw) / lcols as i32;
+                let lch = (uh - ltgh) / lrows as i32;
+                if lcw < 40 || lch < 30 { continue; }
 
-                // Portrait column
-                let scale = if total_h > uh { uh as f64 / total_h as f64 } else { 1.0 };
-                let mut y = cfg.outer_pad;
-                for &(orig_idx, ar) in &col_videos {
-                    let ar = ar.max(0.3).min(3.0);
-                    let vid_h = ((uh as f64 * (1.0 / ar) / inv_sum) * scale) as i32;
-                    let vid_h = vid_h.min(uh - (y - cfg.outer_pad)).max(30);
-                    rects[orig_idx] = CellRect { x: col_x, y, w: col_w, h: vid_h };
-                    y += vid_h + gap;
+                let cell_ar = lcw as f64 / lch as f64;
+                let mut l_fill = 0.0;
+                for &(_, ar) in landscapes {
+                    l_fill += cell_fill_area(ar.max(0.3).min(3.0), lcw, lch, cell_ar);
                 }
 
-                // Landscape grid
-                for (j, &(orig_idx, _)) in landscapes.iter().enumerate() {
-                    let col = (j % lcols) as i32;
-                    let row = (j / lcols) as i32;
-                    rects[orig_idx] = CellRect {
-                        x: land_x + col * (lcw + gap),
-                        y: cfg.outer_pad + row * (lch + gap),
-                        w: lcw, h: lch,
-                    };
-                }
+                let score = (p_fill + l_fill) / screen_area;
+                if score > *best_score {
+                    *best_score = score;
 
-                *best_rects = rects;
+                    let col_x = if portrait_right { cfg.outer_pad + land_w + gap } else { cfg.outer_pad };
+                    let land_x = if portrait_right { cfg.outer_pad } else { cfg.outer_pad + col_w + gap };
+
+                    let mut rects = vec![CellRect{x:0,y:0,w:0,h:0}; portraits.len() + landscapes.len() + squares.len()];
+
+                    // Portrait column rects
+                    let mut y = cfg.outer_pad;
+                    for &(orig_idx, ar) in &col_videos {
+                        let ar = ar.max(0.3).min(3.0);
+                        let vid_h = ((col_w as f64 / ar) * scale) as i32;
+                        let vid_h = vid_h.max(30);
+                        rects[orig_idx] = CellRect { x: col_x, y, w: scaled_w, h: vid_h };
+                        y += vid_h + gap;
+                    }
+
+                    // Landscape grid rects
+                    for (j, &(orig_idx, _)) in landscapes.iter().enumerate() {
+                        let col = (j % lcols) as i32;
+                        let row = (j / lcols) as i32;
+                        rects[orig_idx] = CellRect {
+                            x: land_x + col * (lcw + gap),
+                            y: cfg.outer_pad + row * (lch + gap),
+                            w: lcw, h: lch,
+                        };
+                    }
+
+                    *best_rects = rects;
+                }
             }
         }
     }
