@@ -1,10 +1,11 @@
 # Mission Status
 
-> 最后更新: 2026-05-02 checkpoint (8413446)
+> 最后更新: 2026-05-02 Windows 构建成功
 
 ## 项目：GridPlayer — 多宫格视频播放器
-- **GitHub**: https://github.com/dondmq-OC/gridplayer (16 commits)
-- **本地 .app**: `target/GridPlayer.app` (1.9MB binary, 7.6MB bundle)
+- **GitHub**: https://github.com/dondmq-OC/gridplayer (22 commits)
+- **macOS .app**: `target/GridPlayer.app`
+- **Windows**: GitHub Actions 自动构建 → GridPlayer-win64.zip (便携免安装)
 - **Loop**: 95c2789d (:23,:53)
 
 ## 已完成功能
@@ -20,6 +21,6 @@
 - [x] 崩溃修复: mpv params 哨兵, 渲染器 glViewport 重写
 
 ## 下一步
-- [ ] Windows 编译
-- [ ] 独立离线 .app (dylibbundler)
+- [ ] 独立离线 .app (dylibbundler 打包 64 传递依赖)
 - [ ] DMG 安装包
+- [ ] GitHub Release 发布双平台版本
