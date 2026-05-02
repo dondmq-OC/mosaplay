@@ -30,15 +30,21 @@ jobs:
           Write-Host "Downloading: $($asset.name) ($([math]::Round($asset.size/1MB,1))MB)"
           Invoke-WebRequest -Uri $asset.browser_download_url -OutFile mpv.7z
           7z x mpv.7z -y
-          $dir = Get-ChildItem -Directory | Select-Object -First 1
-          Set-Location $dir.FullName
-          # Generate MSVC import library from .def
-          if (Test-Path libmpv-2.def) {
-            lib /def:libmpv-2.def /machine:x64 /out:mpv.lib
+          # Find the DLL and .def (directory structure varies)
+          $dll = Get-ChildItem -Recurse -Filter "*.dll" | Where-Object { $_.Name -match 'mpv.*\.dll' } | Select-Object -First 1
+          $def = Get-ChildItem -Recurse -Filter "*.def" | Where-Object { $_.Name -match 'mpv' } | Select-Object -First 1
+          Write-Host "Found DLL: $($dll.FullName)"
+          Write-Host "Found DEF: $($def.FullName)"
+          if ($def) {
+            Push-Location $def.DirectoryName
+            lib /def:$($def.Name) /machine:x64 /out:mpv.lib
+            Pop-Location
           }
-          Copy-Item libmpv-2.dll ..
-          if (Test-Path mpv.lib) { Copy-Item mpv.lib .. }
-          Set-Location ..\..
+          if ($dll) { Copy-Item $dll.FullName . }
+          # Copy .lib if generated
+          $lib = Get-ChildItem -Recurse -Filter "mpv.lib" | Select-Object -First 1
+          if ($lib) { Copy-Item $lib.FullName . }
+          Set-Location ..
 
       - name: Build
         env:
