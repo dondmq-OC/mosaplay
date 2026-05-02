@@ -20,3 +20,4 @@ credentials.json
 test_videos/
 windows-deps/mpv.7z
 .claude/worktrees/
+CLAUDE.md
