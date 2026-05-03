@@ -176,6 +176,51 @@ impl RenderState {
                 }
             }
 
+            // ── Status bar at bottom ────────────────────────
+            gl::Disable(gl::SCISSOR_TEST);
+            gl::Viewport(0, 0, screen_w, screen_h);
+            gl::UseProgram(self.solid_program);
+            let color_loc = gl::GetUniformLocation(self.solid_program, b"uColor\0".as_ptr() as *const _);
+            let bar_h = 24i32;
+            let bar_y = screen_h - bar_h;
+
+            // Background bar
+            gl::Viewport(0, bar_y, screen_w, bar_h);
+            gl::Scissor(0, bar_y, screen_w, bar_h);
+            gl::Enable(gl::SCISSOR_TEST);
+            gl::Uniform4f(color_loc, 0.10, 0.10, 0.14, 0.85);
+            gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+            // Focused cell info
+            if !cells.is_empty() && focused_idx < cells.len() {
+                let cell = &cells[focused_idx];
+                // File name bar
+                let name_w = (cell.filename().len() as i32 * 8).min(screen_w / 3);
+                let (r, g, b) = palette[focused_idx % 10];
+                gl::Uniform4f(color_loc, r, g, b, 0.60);
+                gl::Viewport(0, bar_y, name_w, bar_h);
+                gl::Scissor(0, bar_y, name_w, bar_h);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+                // Volume bar
+                let vol = cell.volume() as f32 / 150.0;
+                let vol_w = (screen_w as f32 * 0.08 * vol) as i32;
+                let vol_x = screen_w - vol_w - 60;
+                gl::Uniform4f(color_loc, 0.20, 0.70, 0.40, 0.70);
+                gl::Viewport(vol_x, bar_y + 4, vol_w, bar_h - 8);
+                gl::Scissor(vol_x, bar_y + 4, vol_w, bar_h - 8);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+                // Speed indicator
+                let spd = (cell.speed / 4.0) as f32;
+                let spd_w = (screen_w as f32 * 0.06 * spd) as i32;
+                let spd_x = screen_w - spd_w - 10;
+                gl::Uniform4f(color_loc, 0.30, 0.50, 0.90, 0.60);
+                gl::Viewport(spd_x, bar_y + 4, spd_w, bar_h - 8);
+                gl::Scissor(spd_x, bar_y + 4, spd_w, bar_h - 8);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+            }
+
             gl::Disable(gl::SCISSOR_TEST);
             gl::Viewport(0, 0, screen_w, screen_h);
             gl::BindVertexArray(0);

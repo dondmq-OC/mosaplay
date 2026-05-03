@@ -399,7 +399,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                 if cell.volume() > 0.0 {
                                     cell.set_volume(0.0);
                                 } else {
-                                    cell.set_volume(50.0);
+                                    cell.set_volume(100.0);
                                 }
                             }
 

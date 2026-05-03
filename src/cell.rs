@@ -55,8 +55,8 @@ impl VideoCell {
             let hwdec = CString::new("auto-safe").unwrap();
             mpv_set_option_string(handle, b"hwdec\0".as_ptr() as *const _, hwdec.as_ptr());
 
-            // Keep audio enabled for per-video volume control, default muted
-            let vol = CString::new("0").unwrap();
+            // Audio enabled, default volume 100 (user controls via [ ] and M)
+            let vol = CString::new("100").unwrap();
             mpv_set_option_string(handle, b"volume\0".as_ptr() as *const _, vol.as_ptr());
 
             // Minimize latency
