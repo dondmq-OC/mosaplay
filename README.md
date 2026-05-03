@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/icons_final/FINAL_MosaPlay.png">
-    <img src="assets/icons_final/FINAL_MosaPlay.png" width="128" alt="MosaPlay">
+    <source media="(prefers-color-scheme: dark)" srcset="assets/FINAL_MosaPlay.png">
+    <img src="assets/FINAL_MosaPlay.png" width="128" alt="MosaPlay">
   </picture>
 </p>
 
@@ -39,10 +39,10 @@ MosaPlay 是一个极简、高性能的多视频同屏播放器。基于 Rust + 
 
 | 平台 | 下载 | 说明 |
 |------|------|------|
-| **macOS** | [MosaPlay.app](https://github.com/dondmq-OC/mosaplay/releases) | 拖入 /Applications |
-| **Windows** | [MosaPlay-win64.zip](https://github.com/dondmq-OC/mosaplay/releases) | 解压即用 |
+| **macOS** | [MosaPlay-macOS.zip](https://github.com/dondmq-OC/mosaplay/releases/tag/v0.1.0) | 解压运行或拖入 /Applications |
+| **Windows** | [MosaPlay-win64.zip](https://github.com/dondmq-OC/mosaplay/releases/tag/v0.1.0) | 解压即用，无需安装 |
 
-> 最新版本在 [Releases](https://github.com/dondmq-OC/mosaplay/releases)。  
+> 最新版在 [Releases 页面](https://github.com/dondmq-OC/mosaplay/releases)。  
 > Windows 版由 GitHub Actions 自动构建。
 
 ## 快捷键
@@ -119,8 +119,8 @@ MosaPlay is a minimalist, high-performance multi-video grid player. Built with R
 
 | Platform | Download | Notes |
 |----------|----------|-------|
-| **macOS** | [MosaPlay.app](https://github.com/dondmq-OC/mosaplay/releases) | Drag to /Applications |
-| **Windows** | [MosaPlay-win64.zip](https://github.com/dondmq-OC/mosaplay/releases) | Unzip & run |
+| **macOS** | [MosaPlay-macOS.zip](https://github.com/dondmq-OC/mosaplay/releases/tag/v0.1.0) | Unzip & run, or drag to /Applications |
+| **Windows** | [MosaPlay-win64.zip](https://github.com/dondmq-OC/mosaplay/releases/tag/v0.1.0) | Unzip & run, no install needed |
 
 ## Shortcuts
 
