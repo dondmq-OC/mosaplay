@@ -120,26 +120,25 @@ impl RenderState {
                 gl::BindVertexArray(self.vao);
                 gl::Enable(gl::SCISSOR_TEST);
                 let cx = screen_w / 2;
-                let cy = screen_h / 2;
+                let mut y = screen_h * 3 / 5;
 
-                // Pulsing glow (animated alpha)
-                let pulse = ((std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap_or_default()
-                    .as_millis() as f64 * 0.002).sin() as f32 * 0.5 + 0.5) * 0.18;
-                gl::Viewport(cx - 220, cy - 220, 440, 440);
-                gl::Scissor(cx - 220, cy - 220, 440, 440);
-                gl::Uniform4f(c, 1.0, 0.55, 0.0, pulse);
+                // Three horizontal lines suggesting "drop zone"
+                gl::Uniform4f(c, 0.30, 0.30, 0.40, 0.35);
+                let lw = screen_w / 4;
+                let lh = 1i32;
+                for i in 0..3 {
+                    gl::Viewport(cx - lw / 2, y, lw, lh);
+                    gl::Scissor(cx - lw / 2, y, lw, lh);
+                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+                    y -= 12;
+                }
+
+                // Small accent dot on the right of the lines (like an arrow head)
+                y = screen_h * 3 / 5 - 2;
+                gl::Uniform4f(c, 1.0, 0.55, 0.0, 0.60);
+                gl::Viewport(cx + lw / 2 - 2, y, 6, 6);
+                gl::Scissor(cx + lw / 2 - 2, y, 6, 6);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
-
-                // Play button logo (using dedicated logo_vao)
-                gl::BindVertexArray(self.logo_vao);
-                let lsize = screen_h.min(screen_w) / 5;
-                gl::Uniform4f(c, 1.0, 0.55, 0.0, 0.85);
-                gl::Viewport(cx - lsize / 2, cy - lsize / 2, lsize, lsize);
-                gl::Scissor(cx - lsize / 2, cy - lsize / 2, lsize, lsize);
-                gl::DrawArrays(gl::TRIANGLES, 0, 3);
-                gl::BindVertexArray(self.vao);
 
                 gl::Disable(gl::SCISSOR_TEST);
                 gl::BindVertexArray(0);
