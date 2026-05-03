@@ -587,7 +587,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn show_usage_info() {
-    eprintln!("MosaPlay v0.1.0 — Multi-video grid player");
+    eprintln!("MosaPlay v0.2.0 — Multi-video grid player");
     eprintln!("Usage: mosaplay <video1> [video2] ...");
     eprintln!("Keys: Space=play/pause  ←→=seek  ↑↓=speed  Tab=focus");
     eprintln!("      1-9=select  F=fullscreen  G=grid  Esc=quit");
