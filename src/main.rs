@@ -40,6 +40,7 @@ struct App {
     last_title_update: Instant,
     mouse_x: i32,
     mouse_y: i32,
+    drag_from: Option<usize>,
 }
 
 impl App {
@@ -202,6 +203,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         last_title_update: Instant::now(),
         mouse_x: 0,
         mouse_y: 0,
+        drag_from: None,
     };
 
     let mut screen_w = initial_w as i32;
@@ -248,6 +250,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         {
                             app.focused = i;
                             break;
+                        }
+                    }
+                }
+
+                // Right-click on cell → context menu (close)
+                Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Right, x, y, .. } => {
+                    let target = app.cells.iter().enumerate().find(|(_, c)| {
+                        x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h
+                    });
+                    if let Some((i, _)) = target {
+                        app.cells.remove(i);
+                        if !app.cells.is_empty() {
+                            app.focused = app.focused.min(app.cells.len() - 1);
+                            app.update_layout(screen_w as u32, screen_h as u32);
+                        } else {
+                            app.running = false;
+                        }
+                    }
+                }
+
+                // Left-click drag start → begin cell reorder
+                Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Left, x, y, .. } => {
+                    let target = app.cells.iter().enumerate().find(|(_, c)| {
+                        x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h
+                    });
+                    if let Some((i, _)) = target {
+                        app.drag_from = Some(i);
+                    }
+                }
+
+                // Left-click release → complete drag reorder
+                Event::MouseButtonUp { mouse_btn: sdl2::mouse::MouseButton::Left, .. } => {
+                    if let Some(from) = app.drag_from {
+                        app.drag_from = None;
+                        let mx = app.mouse_x;
+                        let my = app.mouse_y;
+                        let target = app.cells.iter().enumerate().find(|(_, c)| {
+                            mx >= c.x && mx < c.x + c.w && my >= c.y && my < c.y + c.h
+                        });
+                        if let Some((to, _)) = target {
+                            if from != to {
+                                app.cells.swap(from, to);
+                                app.focused = to;
+                                app.update_layout(screen_w as u32, screen_h as u32);
+                            }
                         }
                     }
                 }
@@ -528,6 +575,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         render_state.render_grid(
             &app.cells,
             app.focused,
+            app.drag_from,
             screen_w,
             screen_h,
         );

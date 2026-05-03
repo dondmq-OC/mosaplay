@@ -84,8 +84,37 @@ impl RenderState {
     }
 
     pub fn render_grid(
-        &self, cells: &[VideoCell], focused_idx: usize, screen_w: i32, screen_h: i32,
+        &self, cells: &[VideoCell], focused_idx: usize, drag_from: Option<usize>,
+        screen_w: i32, screen_h: i32,
     ) {
+        // ── Welcome screen when empty ──────────────────
+        if cells.is_empty() {
+            unsafe {
+                gl::ClearColor(0.06, 0.06, 0.08, 1.0);
+                gl::Clear(gl::COLOR_BUFFER_BIT);
+                gl::UseProgram(self.solid_program);
+                let c = gl::GetUniformLocation(self.solid_program, b"uColor\0".as_ptr() as *const _);
+                // Centered hint box
+                let bw = screen_w / 3;
+                let bh = 100i32;
+                gl::Enable(gl::SCISSOR_TEST);
+                gl::Viewport(screen_w / 2 - bw / 2, screen_h / 2 - bh / 2, bw, bh);
+                gl::Scissor(screen_w / 2 - bw / 2, screen_h / 2 - bh / 2, bw, bh);
+                gl::Uniform4f(c, 0.15, 0.15, 0.20, 0.90);
+                gl::BindVertexArray(self.vao);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+                // Thin accent line at top of box
+                gl::Viewport(screen_w / 2 - bw / 2, screen_h / 2 - bh / 2, bw, 3);
+                gl::Scissor(screen_w / 2 - bw / 2, screen_h / 2 - bh / 2, bw, 3);
+                gl::Uniform4f(c, 1.0, 0.55, 0.0, 0.80);
+                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+                gl::Disable(gl::SCISSOR_TEST);
+                gl::BindVertexArray(0);
+                gl::UseProgram(0);
+                return;
+            }
+        }
+
         // Color palette for cell corner markers (10 distinct colors)
         let palette: [(f32, f32, f32); 10] = [
             (0.98, 0.40, 0.30), (0.30, 0.80, 0.40), (0.30, 0.50, 0.98),
@@ -125,6 +154,17 @@ impl RenderState {
                     gl::Viewport(cell.x, gl_y + cell.h - sz, sz, sz);
                     gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                     // Restore
+                    gl::Viewport(cell.x, gl_y, cell.w, cell.h);
+                    gl::Scissor(cell.x, gl_y, cell.w, cell.h);
+                }
+
+                // Drag-source highlight (expanded glow)
+                if drag_from == Some(i) {
+                    let dsz = (cell.w.min(cell.h) as f32 * 0.018) as i32;
+                    gl::Uniform4f(color_loc, 0.50, 0.50, 1.0, 0.20);
+                    gl::Viewport(cell.x - dsz, gl_y - dsz, cell.w + dsz * 2, cell.h + dsz * 2);
+                    gl::Scissor(cell.x - dsz, gl_y - dsz, cell.w + dsz * 2, cell.h + dsz * 2);
+                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
                     gl::Viewport(cell.x, gl_y, cell.w, cell.h);
                     gl::Scissor(cell.x, gl_y, cell.w, cell.h);
                 }
