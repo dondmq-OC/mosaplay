@@ -254,22 +254,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     }
                 }
 
-                // Right-click on cell → context menu (close)
-                Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Right, x, y, .. } => {
-                    let target = app.cells.iter().enumerate().find(|(_, c)| {
-                        x >= c.x && x < c.x + c.w && y >= c.y && y < c.y + c.h
-                    });
-                    if let Some((i, _)) = target {
-                        app.cells.remove(i);
-                        if !app.cells.is_empty() {
-                            app.focused = app.focused.min(app.cells.len() - 1);
-                            app.update_layout(screen_w as u32, screen_h as u32);
-                        } else {
-                            app.running = false;
-                        }
-                    }
-                }
-
                 // Left-click drag start → begin cell reorder
                 Event::MouseButtonDown { mouse_btn: sdl2::mouse::MouseButton::Left, x, y, .. } => {
                     let target = app.cells.iter().enumerate().find(|(_, c)| {
