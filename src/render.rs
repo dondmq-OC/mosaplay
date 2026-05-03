@@ -94,20 +94,66 @@ impl RenderState {
                 gl::Clear(gl::COLOR_BUFFER_BIT);
                 gl::UseProgram(self.solid_program);
                 let c = gl::GetUniformLocation(self.solid_program, b"uColor\0".as_ptr() as *const _);
-                // Centered hint box
-                let bw = screen_w / 3;
-                let bh = 100i32;
-                gl::Enable(gl::SCISSOR_TEST);
-                gl::Viewport(screen_w / 2 - bw / 2, screen_h / 2 - bh / 2, bw, bh);
-                gl::Scissor(screen_w / 2 - bw / 2, screen_h / 2 - bh / 2, bw, bh);
-                gl::Uniform4f(c, 0.15, 0.15, 0.20, 0.90);
                 gl::BindVertexArray(self.vao);
+                gl::Enable(gl::SCISSOR_TEST);
+                let cx = screen_w / 2;
+                let cy = screen_h / 2;
+
+                // Pulsing glow behind the icon (animated alpha)
+                let pulse = ((std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis() as f64 * 0.002).sin() as f32 * 0.3 + 0.5) * 0.25;
+                gl::Viewport(cx - 200, cy - 200, 400, 400);
+                gl::Scissor(cx - 200, cy - 200, 400, 400);
+                gl::Uniform4f(c, 1.0, 0.55, 0.0, pulse);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
-                // Thin accent line at top of box
-                gl::Viewport(screen_w / 2 - bw / 2, screen_h / 2 - bh / 2, bw, 3);
-                gl::Scissor(screen_w / 2 - bw / 2, screen_h / 2 - bh / 2, bw, 3);
-                gl::Uniform4f(c, 1.0, 0.55, 0.0, 0.80);
+
+                // Ghost play triangles (6 layers, offset left)
+                let ghosts: [(f32, f32, f32, f32); 6] = [
+                    (0.00, 0.00, 0.00, 0.04),  // faint visible backdrop
+                    (0.08, 0.06, 0.08, 0.08),
+                    (0.12, 0.12, 0.16, 0.15),
+                    (0.20, 0.20, 0.25, 0.25),
+                    (0.30, 0.30, 0.36, 0.18),
+                    (0.00, 0.00, 0.00, 0.00), // placeholder: main below
+                ];
+                let size = screen_h.min(screen_w) / 6;
+                for (i, &(r, g, b, a)) in ghosts[..5].iter().enumerate() {
+                    let offset = (i as i32 - 2) * size / 4;
+                    gl::Viewport(cx + offset - size / 2, cy - size / 2, size, size);
+                    gl::Scissor(cx + offset - size / 2, cy - size / 2, size, size);
+                    gl::Uniform4f(c, r, g, b, a);
+                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+                }
+                // Main orange triangle (larger)
+                let msize = size + size / 4;
+                gl::Viewport(cx - msize / 2, cy - msize / 2, msize, msize);
+                gl::Scissor(cx - msize / 2, cy - msize / 2, msize, msize);
+                gl::Uniform4f(c, 1.0, 0.55, 0.0, 0.85);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+                // Drop-zone corners (4 thin L-shapes suggesting a drop target)
+                let dz = 30i32;
+                let dw = screen_w / 4;
+                let dh = screen_h / 4;
+                let corners: [(i32, i32, i32, i32, i32, i32); 4] = [
+                    (dw - dz, dh, dz, dz, 1, 0),
+                    (dw, dh, dz, dz, 0, 1),
+                    (screen_w - dw, dh, dz, dz, -1, 0),
+                    (screen_w - dw - dz, dh, dz, dz, 0, 1),
+                ];
+                gl::Uniform4f(c, 0.30, 0.30, 0.40, 0.30);
+                for &(x, y, w, h, _, _) in &corners {
+                    gl::Viewport(x, y, w, h);
+                    gl::Scissor(x, y, w, h);
+                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+                    gl::Viewport(x, y, w, h);
+                    gl::Scissor(x, y, w, h);
+                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+                    break; // just top-left and top-right for simplicity
+                }
+
                 gl::Disable(gl::SCISSOR_TEST);
                 gl::BindVertexArray(0);
                 gl::UseProgram(0);
