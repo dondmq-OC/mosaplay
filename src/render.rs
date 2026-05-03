@@ -42,6 +42,9 @@ pub struct RenderState {
     vao: u32,
     vbo: u32,
     ebo: u32,
+    /// Play-button triangle VAO (3 vertices, for welcome screen)
+    logo_vao: u32,
+    logo_vbo: u32,
 }
 
 impl RenderState {
@@ -79,7 +82,27 @@ impl RenderState {
             gl::EnableVertexAttribArray(1);
             gl::BindVertexArray(0);
 
-            Ok(Self { program, solid_program, vao, vbo, ebo })
+            // Play-button triangle VAO (right-pointing ▶ shape)
+            // Position(2) + texcoord(2), same stride as quad VAO
+            #[rustfmt::skip]
+            let tri: [f32; 12] = [
+                -0.45,  0.0,   0.0, 0.0,  // left point
+                 0.55,  0.50,  0.0, 0.0,  // top-right
+                 0.55, -0.50,  0.0, 0.0,  // bottom-right
+            ];
+            let mut logo_vao = 0; let mut logo_vbo = 0;
+            gl::GenVertexArrays(1, &mut logo_vao);
+            gl::GenBuffers(1, &mut logo_vbo);
+            gl::BindVertexArray(logo_vao);
+            gl::BindBuffer(gl::ARRAY_BUFFER, logo_vbo);
+            gl::BufferData(gl::ARRAY_BUFFER, (tri.len() * std::mem::size_of::<f32>()) as isize, tri.as_ptr() as *const _, gl::STATIC_DRAW);
+            gl::VertexAttribPointer(0, 2, gl::FLOAT, gl::FALSE, stride, std::ptr::null());
+            gl::EnableVertexAttribArray(0);
+            gl::VertexAttribPointer(1, 2, gl::FLOAT, gl::FALSE, stride, (2 * std::mem::size_of::<f32>()) as *const _);
+            gl::EnableVertexAttribArray(1);
+            gl::BindVertexArray(0);
+
+            Ok(Self { program, solid_program, vao, vbo, ebo, logo_vao, logo_vbo })
         }
     }
 
@@ -109,19 +132,14 @@ impl RenderState {
                 gl::Uniform4f(c, 1.0, 0.55, 0.0, pulse);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
 
-                // Centered dark panel
-                let pw = (screen_w / 3).max(200);
-                let ph = (pw / 4).max(50);
-                gl::Viewport(cx - pw / 2, cy - ph / 2, pw, ph);
-                gl::Scissor(cx - pw / 2, cy - ph / 2, pw, ph);
-                gl::Uniform4f(c, 0.12, 0.12, 0.16, 0.90);
-                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
-
-                // Top orange accent bar on panel
-                gl::Uniform4f(c, 1.0, 0.55, 0.0, 0.70);
-                gl::Viewport(cx - pw / 2, cy + ph / 2 - 3, pw, 3);
-                gl::Scissor(cx - pw / 2, cy + ph / 2 - 3, pw, 3);
-                gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+                // Play button logo (using dedicated logo_vao)
+                gl::BindVertexArray(self.logo_vao);
+                let lsize = screen_h.min(screen_w) / 5;
+                gl::Uniform4f(c, 1.0, 0.55, 0.0, 0.85);
+                gl::Viewport(cx - lsize / 2, cy - lsize / 2, lsize, lsize);
+                gl::Scissor(cx - lsize / 2, cy - lsize / 2, lsize, lsize);
+                gl::DrawArrays(gl::TRIANGLES, 0, 3);
+                gl::BindVertexArray(self.vao);
 
                 gl::Disable(gl::SCISSOR_TEST);
                 gl::BindVertexArray(0);
@@ -292,6 +310,8 @@ impl Drop for RenderState {
             gl::DeleteVertexArrays(1, &self.vao);
             gl::DeleteBuffers(1, &self.vbo);
             gl::DeleteBuffers(1, &self.ebo);
+            gl::DeleteVertexArrays(1, &self.logo_vao);
+            gl::DeleteBuffers(1, &self.logo_vbo);
         }
     }
 }
