@@ -112,33 +112,75 @@ impl RenderState {
     ) {
         // ── Welcome screen when empty ──────────────────
         if cells.is_empty() {
+            // Rasterize message text to a texture
+            let msg = "Drop files or press Cmd+O to open";
+            let cx = screen_w / 2;
+            let msg_y = screen_h * 2 / 5;
+            let char_w = 8i32;
+            let char_h = 8i32;
+            let spacing = 2i32;
+            let total_w = (msg.len() as i32) * (char_w + spacing) - spacing;
+            let total_h = char_h;
+
+            // Allocate RGBA buffer
+            let buf_w = total_w.max(1);
+            let buf_h = total_h.max(1);
+            let mut pixels = vec![0u8; (buf_w * buf_h * 4) as usize];
+
+            // Rasterize using font8x8
+            for (ci, c) in msg.chars().enumerate() {
+                let idx = c as usize;
+                if idx < 128 {
+                    let glyph = font8x8::legacy::BASIC_LEGACY[idx]; // 8 rows, each = 1 byte
+                    let x0 = ci as i32 * (char_w + spacing);
+                    for row in 0..8 {
+                        let byte = glyph[row];
+                        for col in 0..8 {
+                            if (byte >> (7 - col)) & 1 != 0 {
+                                let px = (x0 + col as i32) as usize;
+                                let py = row as usize;
+                                if px < buf_w as usize && py < buf_h as usize {
+                                    let idx2 = (py * buf_w as usize + px) * 4;
+                                    pixels[idx2] = 220;     // R
+                                    pixels[idx2 + 1] = 200; // G
+                                    pixels[idx2 + 2] = 180; // B
+                                    pixels[idx2 + 3] = 230; // A
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Upload as OpenGL texture
             unsafe {
+                let mut tex = 0u32;
+                gl::GenTextures(1, &mut tex);
+                gl::BindTexture(gl::TEXTURE_2D, tex);
+                gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as i32, buf_w, buf_h, 0,
+                    gl::RGBA, gl::UNSIGNED_BYTE, pixels.as_ptr() as *const _);
+                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::NEAREST as i32);
+                gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::NEAREST as i32);
+
                 gl::ClearColor(0.06, 0.06, 0.08, 1.0);
                 gl::Clear(gl::COLOR_BUFFER_BIT);
-                gl::UseProgram(self.solid_program);
-                let c = gl::GetUniformLocation(self.solid_program, b"uColor\0".as_ptr() as *const _);
-                gl::BindVertexArray(self.vao);
+
+                // Render the text texture
+                let tw = buf_w;
+                let th = buf_h;
+                let scale = 3i32; // pixel scale for visibility
+                gl::Viewport(cx - tw * scale / 2, msg_y - th * scale / 2, tw * scale, th * scale);
+                gl::Scissor(cx - tw * scale / 2, msg_y - th * scale / 2, tw * scale, th * scale);
                 gl::Enable(gl::SCISSOR_TEST);
-                let cx = screen_w / 2;
-                let mut y = screen_h * 3 / 5;
-
-                // Three horizontal lines suggesting "drop zone"
-                gl::Uniform4f(c, 0.30, 0.30, 0.40, 0.35);
-                let lw = screen_w / 4;
-                let lh = 1i32;
-                for _ in 0..3 {
-                    gl::Viewport(cx - lw / 2, y, lw, lh);
-                    gl::Scissor(cx - lw / 2, y, lw, lh);
-                    gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
-                    y -= 12;
-                }
-
-                // Small accent dot on the right of the lines (like an arrow head)
-                y = screen_h * 3 / 5 - 2;
-                gl::Uniform4f(c, 1.0, 0.55, 0.0, 0.60);
-                gl::Viewport(cx + lw / 2 - 2, y, 6, 6);
-                gl::Scissor(cx + lw / 2 - 2, y, 6, 6);
+                gl::UseProgram(self.program);
+                gl::BindVertexArray(self.vao);
+                gl::ActiveTexture(gl::TEXTURE0);
+                gl::BindTexture(gl::TEXTURE_2D, tex);
+                let tex_loc = gl::GetUniformLocation(self.program, b"uTexture\0".as_ptr() as *const _);
+                gl::Uniform1i(tex_loc, 0);
                 gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
+
+                gl::DeleteTextures(1, &mut tex);
 
                 gl::Disable(gl::SCISSOR_TEST);
                 gl::BindVertexArray(0);
