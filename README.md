@@ -39,11 +39,11 @@ MosaPlay 是一个极简、高性能的多视频同屏播放器。基于 Rust + 
 
 | 平台 | 下载 | 说明 |
 |------|------|------|
-| **macOS** | [MosaPlay-macOS.zip](https://github.com/dondmq-OC/mosaplay/releases/tag/v0.1.0) | 解压运行或拖入 /Applications |
-| **Windows** | [MosaPlay-win64.zip](https://github.com/dondmq-OC/mosaplay/releases/tag/v0.1.0) | 解压即用，无需安装 |
+| **macOS** | [MosaPlay-macOS.zip](https://github.com/dondmq-OC/mosaplay/releases/latest) | 解压运行或拖入 /Applications |
+| **Windows** | [MosaPlay-win64.zip](https://github.com/dondmq-OC/mosaplay/releases/latest) | 解压即用，无需安装 |
 
 > 最新版在 [Releases 页面](https://github.com/dondmq-OC/mosaplay/releases)。  
-> Windows 版由 GitHub Actions 自动构建。
+> 下载链接自动指向最新 Release，无需手动更新版本号。
 
 ## 快捷键
 
@@ -119,8 +119,8 @@ MosaPlay is a minimalist, high-performance multi-video grid player. Built with R
 
 | Platform | Download | Notes |
 |----------|----------|-------|
-| **macOS** | [MosaPlay-macOS.zip](https://github.com/dondmq-OC/mosaplay/releases/tag/v0.1.0) | Unzip & run, or drag to /Applications |
-| **Windows** | [MosaPlay-win64.zip](https://github.com/dondmq-OC/mosaplay/releases/tag/v0.1.0) | Unzip & run, no install needed |
+| **macOS** | [MosaPlay-macOS.zip](https://github.com/dondmq-OC/mosaplay/releases/latest) | Unzip & run, or drag to /Applications |
+| **Windows** | [MosaPlay-win64.zip](https://github.com/dondmq-OC/mosaplay/releases/latest) | Unzip & run, no install needed |
 
 ## Shortcuts
 
