@@ -84,22 +84,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Parse command-line arguments: video files to load
     let args: Vec<String> = std::env::args().skip(1).collect();
     let args = if args.is_empty() {
-        // No args — try to open file dialog
+        // No args — show welcome screen (file dialog, drag-drop, or quit)
         show_usage_info();
-        match open_file_dialog() {
-            Some(files) => files,
-            None => {
-                eprintln!("No files selected. Exiting.");
-                std::process::exit(0);
-            }
+        if let Some(files) = open_file_dialog() {
+            files
+        } else {
+            vec![] // empty → show welcome screen
         }
     } else {
         args
     };
-
-    if args.is_empty() {
-        std::process::exit(0);
-    }
 
     // ── Init SDL2 ───────────────────────────────────────────
     let sdl = sdl2::init().map_err(|e| format!("SDL init: {e}"))?;
@@ -188,9 +182,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    if cells.is_empty() {
-        eprintln!("No videos could be loaded.");
-        std::process::exit(1);
+    if cells.is_empty() && !args.is_empty() {
+        eprintln!("No videos could be loaded from the given paths.");
     }
 
     println!("Loaded {}/{} videos.", cells.len(), args.len());
@@ -293,8 +286,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         if !app.cells.is_empty() {
                             app.focused = app.focused.min(app.cells.len() - 1);
                             app.update_layout(screen_w as u32, screen_h as u32);
-                        } else {
-                            app.running = false;
                         }
                     }
                 }
@@ -496,9 +487,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                         Keycode::Delete | Keycode::Backspace if !shift
                             && !app.cells.is_empty() => {
                                 app.cells.remove(app.focused);
-                                if app.cells.is_empty() {
-                                    app.running = false;
-                                } else {
+                                if !app.cells.is_empty() {
                                     app.focused = app.focused.min(app.cells.len() - 1);
                                     app.update_layout(screen_w as u32, screen_h as u32);
                                 }
