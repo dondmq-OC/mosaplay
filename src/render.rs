@@ -155,6 +155,7 @@ impl RenderState {
             // Upload as OpenGL texture
             unsafe {
                 let mut tex = 0u32;
+                gl::PixelStorei(gl::UNPACK_ALIGNMENT, 1);
                 gl::GenTextures(1, &mut tex);
                 gl::BindTexture(gl::TEXTURE_2D, tex);
                 gl::TexImage2D(gl::TEXTURE_2D, 0, gl::RGBA as i32, buf_w, buf_h, 0,
