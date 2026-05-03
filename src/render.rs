@@ -138,7 +138,7 @@ impl RenderState {
                         for col in 0..8 {
                             if (byte >> (7 - col)) & 1 != 0 {
                                 let px = (x0 + col as i32) as usize;
-                                let py = row as usize;
+                                let py = (7 - row) as usize; // flip Y for OpenGL
                                 if px < buf_w as usize && py < buf_h as usize {
                                     let idx2 = (py * buf_w as usize + px) * 4;
                                     pixels[idx2] = 220;     // R
