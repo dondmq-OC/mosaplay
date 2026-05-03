@@ -1,6 +1,6 @@
 # Mission Status
 
-> 最后更新: 2026-05-03 Release v0.1.0 已发布
+> 最后更新: 2026-05-03 Release v0.2.0 已发布（macOS + Windows）
 
 ## 项目：MosaPlay — 多宫格视频播放器
 - **GitHub**: https://github.com/dondmq-OC/mosaplay
