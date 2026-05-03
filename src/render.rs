@@ -126,7 +126,7 @@ impl RenderState {
                 gl::Uniform4f(c, 0.30, 0.30, 0.40, 0.35);
                 let lw = screen_w / 4;
                 let lh = 1i32;
-                for i in 0..3 {
+                for _ in 0..3 {
                     gl::Viewport(cx - lw / 2, y, lw, lh);
                     gl::Scissor(cx - lw / 2, y, lw, lh);
                     gl::DrawElements(gl::TRIANGLES, 6, gl::UNSIGNED_INT, std::ptr::null());
